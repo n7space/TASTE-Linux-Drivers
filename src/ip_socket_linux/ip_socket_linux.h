@@ -18,8 +18,8 @@ namespace taste
 
   void LinuxIpSocketInit(SystemBus bus_id,
 						 SystemDevice device_id,
-						 const Generic_IP_Conf_T *const device_configuration,
-						 const Generic_IP_Conf_T *const remote_device_configuration);
+						 const Socket_IP_Conf_T *const device_configuration,
+						 const Socket_IP_Conf_T *const remote_device_configuration);
 }
 
 #endif

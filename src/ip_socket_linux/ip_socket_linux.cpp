@@ -1,4 +1,4 @@
-#include "LinuxIpSocket.h"
+#include "ip_socket_linux.h"
 
 #include <cstdint>
 #include <cstdlib>
@@ -28,8 +28,8 @@ namespace taste
 	static int ip_sockfd;
 	static enum SystemBus ip_device_bus_id;
 	static enum SystemDevice ip_device_id;
-	static const Generic_IP_Conf_T* ip_device_configuration;
-	static const Generic_IP_Conf_T* ip_remote_device_configuration;
+	static const Socket_IP_Conf_T* ip_device_configuration;
+	static const Socket_IP_Conf_T* ip_remote_device_configuration;
 
 	void LinuxIpSocketPoll()
 	{
@@ -154,14 +154,15 @@ namespace taste
 		}
 	}
 
-        void LinuxIpSocketInit(
-            enum SystemBus bus_id, enum SystemDevice device_id,
-            const Generic_IP_Conf_T *const device_configuration,
-            const Generic_IP_Conf_T *const remote_device_configuration) {
-          ip_device_bus_id = bus_id;
-          ip_device_id = device_id;
-          ip_device_configuration = device_configuration;
-          ip_remote_device_configuration = remote_device_configuration;
-          thread.start(&generic_ip_driver_linux_poll);
-        }
-        } // namespace taste
+	void LinuxIpSocketInit(enum SystemBus bus_id,
+						   enum SystemDevice device_id,
+						   const Socket_IP_Conf_T *const device_configuration,
+						   const Socket_IP_Conf_T *const remote_device_configuration)
+	{
+		ip_device_bus_id = bus_id;
+		ip_device_id = device_id;
+		ip_device_configuration = device_configuration;
+		ip_remote_device_configuration = remote_device_configuration;
+		thread.start(&LinuxIpSocketPoll);
+	}
+}
