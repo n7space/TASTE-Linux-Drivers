@@ -1,1 +1,1 @@
-add_subdirectory(ip_socket_linux)
+add_subdirectory(linux_ip_socket)
