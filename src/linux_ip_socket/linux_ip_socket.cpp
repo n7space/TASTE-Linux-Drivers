@@ -74,16 +74,51 @@ void LinuxIpSocketPoll(void *private_data) {
 
   struct sockaddr_storage their_addr;
 
-  static uint8_t buffer[BROKER_BUFFER_SIZE];
+  static uint8_t message_buffer[BROKER_BUFFER_SIZE];
+  size_t message_buffer_index = 0;
+
+  linux_ip_socket_private_data::State state =
+      linux_ip_socket_private_data::STATE_WAIT;
+
+  static uint8_t buffer[256];
   while (true) {
     socklen_t addr_len;
-    rc = recvfrom(self->ip_sockfd, buffer, BROKER_BUFFER_SIZE, 0,
+    rc = recvfrom(self->ip_sockfd, buffer, 256, 0,
                   (struct sockaddr *)&their_addr, &addr_len);
     if (rc == -1) {
       std::cerr << "recvfrom";
     } else {
-      std::cout << "received " << rc << " bytes" << std::endl;
-      Broker_receive_packet(buffer, rc);
+      // parse packet
+      for (int i = 0; i < rc; ++i) {
+        switch (state) {
+        case linux_ip_socket_private_data::STATE_WAIT:
+          if (buffer[i] == linux_ip_socket_private_data::START_BYTE) {
+            state = linux_ip_socket_private_data::STATE_DATA_BYTE;
+          }
+          break;
+        case linux_ip_socket_private_data::STATE_DATA_BYTE:
+          if (buffer[i] == linux_ip_socket_private_data::STOP_BYTE) {
+            Broker_receive_packet(message_buffer, message_buffer_index);
+            message_buffer_index = 0;
+            state = linux_ip_socket_private_data::STATE_WAIT;
+          } else if (buffer[i] == linux_ip_socket_private_data::ESCAPE_BYTE) {
+            state = linux_ip_socket_private_data::STATE_ESCAPE_BYTE;
+          } else if (buffer[i] == linux_ip_socket_private_data::START_BYTE) {
+            message_buffer_index = 0;
+            state = linux_ip_socket_private_data::STATE_DATA_BYTE;
+          } else {
+            message_buffer[message_buffer_index] = buffer[i];
+            ++message_buffer_index;
+          }
+          break;
+        case linux_ip_socket_private_data::STATE_ESCAPE_BYTE:
+          message_buffer[message_buffer_index] = buffer[i];
+          ++message_buffer_index;
+          state = linux_ip_socket_private_data::STATE_DATA_BYTE;
+
+          break;
+        }
+      }
     }
   }
 }
@@ -126,13 +161,71 @@ void LinuxIpSocketSend(void *private_data, uint8_t *data, size_t length) {
 
   freeaddrinfo(servinfo);
 
-  std::cout << "Sending " << length << " bytes\n";
-  rc = sendto(self->ip_sockfd, data, length, 0, p->ai_addr, p->ai_addrlen);
+  static uint8_t send_buffer[256];
+  size_t send_buffer_index = 0;
+
+  send_buffer[0] = linux_ip_socket_private_data::START_BYTE;
+  ++send_buffer_index;
+
+  size_t index = 0;
+  bool escape = false;
+  while (index < length) {
+    if (escape) {
+      send_buffer[send_buffer_index] = data[index];
+      ++send_buffer_index;
+      ++index;
+      escape = false;
+    } else if (data[index] == linux_ip_socket_private_data::START_BYTE) {
+      send_buffer[send_buffer_index] =
+          linux_ip_socket_private_data::ESCAPE_BYTE;
+      ++send_buffer_index;
+      escape = true;
+    } else if (data[index] == linux_ip_socket_private_data::ESCAPE_BYTE) {
+      send_buffer[send_buffer_index] =
+          linux_ip_socket_private_data::ESCAPE_BYTE;
+      ++send_buffer_index;
+      escape = true;
+    } else if (data[index] == linux_ip_socket_private_data::STOP_BYTE) {
+      send_buffer[send_buffer_index] =
+          linux_ip_socket_private_data::ESCAPE_BYTE;
+      ++send_buffer_index;
+      escape = true;
+    } else {
+      send_buffer[send_buffer_index] = data[index];
+      ++send_buffer_index;
+      ++index;
+    }
+
+    if (send_buffer_index >= 256) {
+      rc = sendto(self->ip_sockfd, send_buffer, 256, 0, p->ai_addr,
+                  p->ai_addrlen);
+      if (rc == -1) {
+        std::cerr << "sendto\n";
+        return;
+      }
+      send_buffer_index = 0;
+    }
+  }
+
+  if (send_buffer_index >= 256) {
+    rc =
+        sendto(self->ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
+    if (rc == -1) {
+      std::cerr << "sendto\n";
+      return;
+    }
+    send_buffer_index = 0;
+  }
+
+  send_buffer[send_buffer_index] = linux_ip_socket_private_data::STOP_BYTE;
+  ++send_buffer_index;
+  rc = sendto(self->ip_sockfd, send_buffer, send_buffer_index, 0, p->ai_addr,
+              p->ai_addrlen);
   if (rc == -1) {
     std::cerr << "sendto\n";
-  } else {
-    std::cout << rc << " bytes sent" << std::endl;
+    return;
   }
+  send_buffer_index = 0;
 }
 
 void LinuxIpSocketInit(

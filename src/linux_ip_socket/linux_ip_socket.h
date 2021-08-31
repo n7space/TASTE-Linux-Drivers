@@ -12,6 +12,15 @@
 // Linux_Ip_Socket
 
 struct linux_ip_socket_private_data {
+  static inline constexpr uint8_t START_BYTE = 0x00;
+  static inline constexpr uint8_t STOP_BYTE = 0xFF;
+  static inline constexpr uint8_t ESCAPE_BYTE = 0xFE;
+
+  enum State {
+    STATE_WAIT,
+    STATE_DATA_BYTE,
+    STATE_ESCAPE_BYTE,
+  };
   linux_ip_socket_private_data();
   int ip_sockfd;
   enum SystemBus m_ip_device_bus_id;
