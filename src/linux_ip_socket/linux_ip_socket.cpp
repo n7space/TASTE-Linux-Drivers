@@ -12,8 +12,6 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
-#include <thread.h>
-
 #include <drivers_config.h>
 
 extern "C" {

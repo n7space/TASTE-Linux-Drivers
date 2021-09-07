@@ -4,8 +4,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <Thread.h>
 #include <system_spec.h>
-#include <thread.h>
 
 #include <drivers_config.h>
 
