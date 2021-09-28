@@ -41,6 +41,11 @@
 
 #include <drivers_config.h>
 
+extern "C"
+{
+#include <Broker.h>
+}
+
 /**
  * @brief Structure for driver internal data.
  *
@@ -90,12 +95,15 @@ class linux_ip_socket_private_data final
   private:
     static inline constexpr int DRIVER_THREAD_PRIORITY = 1;
     static inline constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
+    static inline constexpr size_t DRIVER_SEND_BUFFER_SIZE = 256;
+    static inline constexpr size_t DRIVER_RECV_BUFFER_SIZE = 256;
     static inline constexpr uint8_t START_BYTE = 0x00;
     static inline constexpr uint8_t STOP_BYTE = 0xFF;
     static inline constexpr uint8_t ESCAPE_BYTE = 0xFE;
 
   private:
     void fill_addrinfo(addrinfo** target, const char* address, unsigned int port);
+    void parse_recv_buffer(int length);
 
     enum State
     {
@@ -109,6 +117,13 @@ class linux_ip_socket_private_data final
     const Socket_IP_Conf_T* m_ip_device_configuration;
     const Socket_IP_Conf_T* m_ip_remote_device_configuration;
     taste::Thread m_thread;
+
+    linux_ip_socket_private_data::State m_parse_state = STATE_WAIT;
+    uint8_t m_message_buffer[BROKER_BUFFER_SIZE];
+    size_t m_message_buffer_index;
+
+    uint8_t m_send_buffer[DRIVER_SEND_BUFFER_SIZE];
+    uint8_t m_recv_buffer[DRIVER_RECV_BUFFER_SIZE];
 };
 
 namespace taste {

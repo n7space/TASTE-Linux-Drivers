@@ -33,16 +33,11 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
-
-#include <drivers_config.h>
-
-extern "C"
-{
-#include <Broker.h>
-}
+#include <errno.h>
 
 linux_ip_socket_private_data::linux_ip_socket_private_data()
     : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
+    , m_message_buffer_index(0)
 {
 }
 
@@ -62,22 +57,20 @@ linux_ip_socket_private_data::init(SystemBus bus_id,
 void
 linux_ip_socket_private_data::poll()
 {
-    std::cout << "Creating driver thread\n" << std::endl;
     addrinfo* servinfo = nullptr;
-    addrinfo* p = nullptr;
-    int rc;
-
     fill_addrinfo(&servinfo, m_ip_device_configuration->address, m_ip_device_configuration->port);
 
+    addrinfo* p = nullptr;
+    int rc = 0;
     for(p = servinfo; p != NULL; p = p->ai_next) {
         m_ip_sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if(m_ip_sockfd == -1) {
-            std::cerr << "socket\n";
+            std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
             continue;
         }
         rc = bind(m_ip_sockfd, p->ai_addr, p->ai_addrlen);
         if(rc == -1) {
-            std::cerr << "bind\n";
+            std::cerr << "bind() returned an error: " << strerror(errno) << std::endl;
             continue;
         }
 
@@ -91,51 +84,16 @@ linux_ip_socket_private_data::poll()
 
     freeaddrinfo(servinfo);
 
-    struct sockaddr_storage their_addr;
+    struct sockaddr_storage remote_addr;
 
-    static uint8_t message_buffer[BROKER_BUFFER_SIZE];
-    size_t message_buffer_index = 0;
-
-    linux_ip_socket_private_data::State state = linux_ip_socket_private_data::STATE_WAIT;
-
-    static uint8_t buffer[256];
     while(true) {
         socklen_t addr_len = sizeof(sockaddr_storage);
-        rc = recvfrom(m_ip_sockfd, buffer, 256, 0, (struct sockaddr*)&their_addr, &addr_len);
+        rc = recvfrom(
+                m_ip_sockfd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE, 0, (struct sockaddr*)&remote_addr, &addr_len);
         if(rc == -1) {
-            std::cerr << "recvfrom";
+            std::cerr << "recvfrom error\n";
         } else {
-            // parse packet
-            for(int i = 0; i < rc; ++i) {
-                switch(state) {
-                    case linux_ip_socket_private_data::STATE_WAIT:
-                        if(buffer[i] == linux_ip_socket_private_data::START_BYTE) {
-                            state = linux_ip_socket_private_data::STATE_DATA_BYTE;
-                        }
-                        break;
-                    case linux_ip_socket_private_data::STATE_DATA_BYTE:
-                        if(buffer[i] == linux_ip_socket_private_data::STOP_BYTE) {
-                            Broker_receive_packet(message_buffer, message_buffer_index);
-                            message_buffer_index = 0;
-                            state = linux_ip_socket_private_data::STATE_WAIT;
-                        } else if(buffer[i] == linux_ip_socket_private_data::ESCAPE_BYTE) {
-                            state = linux_ip_socket_private_data::STATE_ESCAPE_BYTE;
-                        } else if(buffer[i] == linux_ip_socket_private_data::START_BYTE) {
-                            message_buffer_index = 0;
-                            state = linux_ip_socket_private_data::STATE_DATA_BYTE;
-                        } else {
-                            message_buffer[message_buffer_index] = buffer[i];
-                            ++message_buffer_index;
-                        }
-                        break;
-                    case linux_ip_socket_private_data::STATE_ESCAPE_BYTE:
-                        message_buffer[message_buffer_index] = buffer[i];
-                        ++message_buffer_index;
-                        state = linux_ip_socket_private_data::STATE_DATA_BYTE;
-
-                        break;
-                }
-            }
+            parse_recv_buffer(rc);
         }
     }
 }
@@ -144,11 +102,11 @@ void
 linux_ip_socket_private_data::send(uint8_t* data, size_t length)
 {
     addrinfo* servinfo = nullptr;
-    addrinfo* p = nullptr;
-    int rc;
 
     fill_addrinfo(&servinfo, m_ip_remote_device_configuration->address, m_ip_remote_device_configuration->port);
 
+    addrinfo* p = nullptr;
+    int rc = 0;
     for(p = servinfo; p != NULL; p = p->ai_next) {
         break;
     }
@@ -158,62 +116,61 @@ linux_ip_socket_private_data::send(uint8_t* data, size_t length)
         exit(3);
     }
 
-    static uint8_t send_buffer[256];
     size_t send_buffer_index = 0;
 
-    send_buffer[0] = linux_ip_socket_private_data::START_BYTE;
+    m_send_buffer[0] = START_BYTE;
     ++send_buffer_index;
 
     size_t index = 0;
     bool escape = false;
     while(index < length) {
         if(escape) {
-            send_buffer[send_buffer_index] = data[index];
+            m_send_buffer[send_buffer_index] = data[index];
             ++send_buffer_index;
             ++index;
             escape = false;
-        } else if(data[index] == linux_ip_socket_private_data::START_BYTE) {
-            send_buffer[send_buffer_index] = linux_ip_socket_private_data::ESCAPE_BYTE;
+        } else if(data[index] == START_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
             ++send_buffer_index;
             escape = true;
-        } else if(data[index] == linux_ip_socket_private_data::ESCAPE_BYTE) {
-            send_buffer[send_buffer_index] = linux_ip_socket_private_data::ESCAPE_BYTE;
+        } else if(data[index] == ESCAPE_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
             ++send_buffer_index;
             escape = true;
-        } else if(data[index] == linux_ip_socket_private_data::STOP_BYTE) {
-            send_buffer[send_buffer_index] = linux_ip_socket_private_data::ESCAPE_BYTE;
+        } else if(data[index] == STOP_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
             ++send_buffer_index;
             escape = true;
         } else {
-            send_buffer[send_buffer_index] = data[index];
+            m_send_buffer[send_buffer_index] = data[index];
             ++send_buffer_index;
             ++index;
         }
 
-        if(send_buffer_index >= 256) {
-            rc = sendto(m_ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
+        if(send_buffer_index >= DRIVER_SEND_BUFFER_SIZE) {
+            rc = sendto(m_ip_sockfd, m_send_buffer, DRIVER_SEND_BUFFER_SIZE, 0, p->ai_addr, p->ai_addrlen);
             if(rc == -1) {
-                std::cerr << "sendto\n";
+                std::cerr << "sendto error\n";
                 return;
             }
             send_buffer_index = 0;
         }
     }
 
-    if(send_buffer_index >= 256) {
-        rc = sendto(m_ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
+    if(send_buffer_index >= DRIVER_SEND_BUFFER_SIZE) {
+        rc = sendto(m_ip_sockfd, m_send_buffer, DRIVER_SEND_BUFFER_SIZE, 0, p->ai_addr, p->ai_addrlen);
         if(rc == -1) {
-            std::cerr << "sendto\n";
+            std::cerr << "sendtoerror\n";
             return;
         }
         send_buffer_index = 0;
     }
 
-    send_buffer[send_buffer_index] = linux_ip_socket_private_data::STOP_BYTE;
+    m_send_buffer[send_buffer_index] = STOP_BYTE;
     ++send_buffer_index;
-    rc = sendto(m_ip_sockfd, send_buffer, send_buffer_index, 0, p->ai_addr, p->ai_addrlen);
+    rc = sendto(m_ip_sockfd, m_send_buffer, send_buffer_index, 0, p->ai_addr, p->ai_addrlen);
     if(rc == -1) {
-        std::cerr << "sendto\n";
+        std::cerr << "sendto error\n";
         return;
     }
     send_buffer_index = 0;
@@ -238,6 +195,42 @@ linux_ip_socket_private_data::fill_addrinfo(addrinfo** target, const char* addre
         std::cerr << "getaddrinfo returned an error: " << gai_strerror(rc) << std::endl;
         std::cerr << "Aborting." << std::endl;
         abort();
+    }
+}
+
+void
+linux_ip_socket_private_data::parse_recv_buffer(int length)
+{
+    // parse packet
+    for(int i = 0; i < length; ++i) {
+        switch(m_parse_state) {
+            case STATE_WAIT:
+                if(m_recv_buffer[i] == START_BYTE) {
+                    m_parse_state = STATE_DATA_BYTE;
+                }
+                break;
+            case STATE_DATA_BYTE:
+                if(m_recv_buffer[i] == STOP_BYTE) {
+                    Broker_receive_packet(m_message_buffer, m_message_buffer_index);
+                    m_message_buffer_index = 0;
+                    m_parse_state = STATE_WAIT;
+                } else if(m_recv_buffer[i] == ESCAPE_BYTE) {
+                    m_parse_state = STATE_ESCAPE_BYTE;
+                } else if(m_recv_buffer[i] == START_BYTE) {
+                    m_message_buffer_index = 0;
+                    m_parse_state = STATE_DATA_BYTE;
+                } else {
+                    m_message_buffer[m_message_buffer_index] = m_recv_buffer[i];
+                    ++m_message_buffer_index;
+                }
+                break;
+            case STATE_ESCAPE_BYTE:
+                m_message_buffer[m_message_buffer_index] = m_recv_buffer[i];
+                ++m_message_buffer_index;
+                m_parse_state = STATE_DATA_BYTE;
+
+                break;
+        }
     }
 }
 
