@@ -32,6 +32,10 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+
 #include <Thread.h>
 #include <system_spec.h>
 
@@ -44,11 +48,54 @@
  * The name of this structure shall match driver definition from ocarina_components.aadl
  * and has suffix '_private_data'.
  */
-struct linux_ip_socket_private_data
+class linux_ip_socket_private_data final
 {
+  public:
+    /**
+     * @brief  Default constructor.
+     *
+     * Construct empty object, which needs to be initialized using @link init
+     * before usage.
+     */
+    linux_ip_socket_private_data();
+
+    /**
+     * @brief Initialize driver.
+     *
+     * Driver needs to be initialized before start.
+     *
+     * @param bus_id         Identifier of the bus, which is used by driver
+     * @param device_id      Identifier of the device
+     * @param device_configuration Configuration of device
+     * @param remote_device_configuration Configuration of remote device
+     */
+    void init(SystemBus bus_id,
+              SystemDevice device_id,
+              const Socket_IP_Conf_T* const device_configuration,
+              const Socket_IP_Conf_T* const remote_device_configuration);
+    /**
+     * @brief Receive data from remote partitions.
+     *
+     * This function receives data from remote partition and sends it to the Broker.
+     */
+    void poll();
+    /**
+     * @brief send data to remote partition.
+     *
+     * @param data           The Buffer which data to send to connected remote partition
+     * @param length         The size of the buffer
+     */
+    void send(uint8_t* data, size_t length);
+
+  private:
+    static inline constexpr int DRIVER_THREAD_PRIORITY = 1;
+    static inline constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static inline constexpr uint8_t START_BYTE = 0x00;
     static inline constexpr uint8_t STOP_BYTE = 0xFF;
     static inline constexpr uint8_t ESCAPE_BYTE = 0xFE;
+
+  private:
+    void fill_addrinfo(addrinfo** target, const char* address, unsigned int port);
 
     enum State
     {
@@ -56,8 +103,7 @@ struct linux_ip_socket_private_data
         STATE_DATA_BYTE,
         STATE_ESCAPE_BYTE,
     };
-    linux_ip_socket_private_data();
-    int ip_sockfd;
+    int m_ip_sockfd;
     enum SystemBus m_ip_device_bus_id;
     enum SystemDevice m_ip_device_id;
     const Socket_IP_Conf_T* m_ip_device_configuration;

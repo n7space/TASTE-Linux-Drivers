@@ -42,43 +42,40 @@ extern "C"
 }
 
 linux_ip_socket_private_data::linux_ip_socket_private_data()
-    : m_thread(1, 65536)
+    : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
 {
 }
 
-namespace taste {
+void
+linux_ip_socket_private_data::init(SystemBus bus_id,
+                                   SystemDevice device_id,
+                                   const Socket_IP_Conf_T* const device_configuration,
+                                   const Socket_IP_Conf_T* const remote_device_configuration)
+{
+    m_ip_device_bus_id = bus_id;
+    m_ip_device_id = device_id;
+    m_ip_device_configuration = device_configuration;
+    m_ip_remote_device_configuration = remote_device_configuration;
+    m_thread.start(&taste::LinuxIpSocketPoll, this);
+}
 
 void
-LinuxIpSocketPoll(void* private_data)
+linux_ip_socket_private_data::poll()
 {
-    linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
     std::cout << "Creating driver thread\n" << std::endl;
-    struct addrinfo hints;
-    struct addrinfo* servinfo;
-    struct addrinfo* p;
+    addrinfo* servinfo = nullptr;
+    addrinfo* p = nullptr;
+    int rc;
 
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    std::string primary_host = self->m_ip_device_configuration->address;
-    std::string primary_port = std::to_string(self->m_ip_device_configuration->port);
-
-    std::cout << "Bind at " << primary_host << " : " << primary_port << std::endl;
-    int rc = getaddrinfo(primary_host.c_str(), primary_port.c_str(), &hints, &servinfo);
-    if(rc != 0) {
-        std::cerr << "getaddrinfo\n";
-        exit(3);
-    }
+    fill_addrinfo(&servinfo, m_ip_device_configuration->address, m_ip_device_configuration->port);
 
     for(p = servinfo; p != NULL; p = p->ai_next) {
-        self->ip_sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
-        if(self->ip_sockfd == -1) {
+        m_ip_sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+        if(m_ip_sockfd == -1) {
             std::cerr << "socket\n";
             continue;
         }
-        rc = bind(self->ip_sockfd, p->ai_addr, p->ai_addrlen);
+        rc = bind(m_ip_sockfd, p->ai_addr, p->ai_addrlen);
         if(rc == -1) {
             std::cerr << "bind\n";
             continue;
@@ -103,8 +100,8 @@ LinuxIpSocketPoll(void* private_data)
 
     static uint8_t buffer[256];
     while(true) {
-        socklen_t addr_len;
-        rc = recvfrom(self->ip_sockfd, buffer, 256, 0, (struct sockaddr*)&their_addr, &addr_len);
+        socklen_t addr_len = sizeof(sockaddr_storage);
+        rc = recvfrom(m_ip_sockfd, buffer, 256, 0, (struct sockaddr*)&their_addr, &addr_len);
         if(rc == -1) {
             std::cerr << "recvfrom";
         } else {
@@ -144,29 +141,13 @@ LinuxIpSocketPoll(void* private_data)
 }
 
 void
-LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
+linux_ip_socket_private_data::send(uint8_t* data, size_t length)
 {
-    linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
+    addrinfo* servinfo = nullptr;
+    addrinfo* p = nullptr;
+    int rc;
 
-    struct addrinfo hints;
-    struct addrinfo* servinfo;
-    struct addrinfo* p;
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_flags = AI_PASSIVE;
-
-    std::string remote_host = self->m_ip_remote_device_configuration->address;
-    std::string remote_port = std::to_string(self->m_ip_remote_device_configuration->port);
-
-    std::cout << "Sending to " << remote_host << " : " << remote_port << std::endl;
-    int rc = getaddrinfo(remote_host.c_str(), remote_port.c_str(), &hints, &servinfo);
-
-    if(rc != 0) {
-        std::cerr << "getaddrinfo\n";
-        exit(3);
-    }
+    fill_addrinfo(&servinfo, m_ip_remote_device_configuration->address, m_ip_remote_device_configuration->port);
 
     for(p = servinfo; p != NULL; p = p->ai_next) {
         break;
@@ -176,8 +157,6 @@ LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
         std::cerr << "Cannot create or bind socket\n";
         exit(3);
     }
-
-    freeaddrinfo(servinfo);
 
     static uint8_t send_buffer[256];
     size_t send_buffer_index = 0;
@@ -212,7 +191,7 @@ LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
         }
 
         if(send_buffer_index >= 256) {
-            rc = sendto(self->ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
+            rc = sendto(m_ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
             if(rc == -1) {
                 std::cerr << "sendto\n";
                 return;
@@ -222,7 +201,7 @@ LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
     }
 
     if(send_buffer_index >= 256) {
-        rc = sendto(self->ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
+        rc = sendto(m_ip_sockfd, send_buffer, 256, 0, p->ai_addr, p->ai_addrlen);
         if(rc == -1) {
             std::cerr << "sendto\n";
             return;
@@ -232,12 +211,50 @@ LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
 
     send_buffer[send_buffer_index] = linux_ip_socket_private_data::STOP_BYTE;
     ++send_buffer_index;
-    rc = sendto(self->ip_sockfd, send_buffer, send_buffer_index, 0, p->ai_addr, p->ai_addrlen);
+    rc = sendto(m_ip_sockfd, send_buffer, send_buffer_index, 0, p->ai_addr, p->ai_addrlen);
     if(rc == -1) {
         std::cerr << "sendto\n";
         return;
     }
     send_buffer_index = 0;
+    freeaddrinfo(servinfo);
+}
+
+void
+linux_ip_socket_private_data::fill_addrinfo(addrinfo** target, const char* address, unsigned int port)
+{
+    addrinfo hints;
+    memset(&hints, 0, sizeof(addrinfo));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    hints.ai_flags = AI_PASSIVE;
+
+    const std::string remote_host = std::string(address);
+    const std::string remote_port = std::to_string(port);
+
+    int rc = getaddrinfo(remote_host.c_str(), remote_port.c_str(), &hints, target);
+
+    if(rc != 0) {
+        std::cerr << "getaddrinfo returned an error: " << gai_strerror(rc) << std::endl;
+        std::cerr << "Aborting." << std::endl;
+        abort();
+    }
+}
+
+namespace taste {
+
+void
+LinuxIpSocketPoll(void* private_data)
+{
+    linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
+    self->poll();
+}
+
+void
+LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
+{
+    linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
+    self->send(data, length);
 }
 
 void
@@ -248,10 +265,6 @@ LinuxIpSocketInit(void* private_data,
                   const Socket_IP_Conf_T* const remote_device_configuration)
 {
     linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
-    self->m_ip_device_bus_id = bus_id;
-    self->m_ip_device_id = device_id;
-    self->m_ip_device_configuration = device_configuration;
-    self->m_ip_remote_device_configuration = remote_device_configuration;
-    self->m_thread.start(&LinuxIpSocketPoll, private_data);
+    self->init(bus_id, device_id, device_configuration, remote_device_configuration);
 }
 } // namespace taste
