@@ -74,8 +74,8 @@ class linux_ip_socket_private_data final
      * @param device_configuration Configuration of device
      * @param remote_device_configuration Configuration of remote device
      */
-    void init(SystemBus bus_id,
-              SystemDevice device_id,
+    void init(const SystemBus bus_id,
+              const SystemDevice device_id,
               const Socket_IP_Conf_T* const device_configuration,
               const Socket_IP_Conf_T* const remote_device_configuration);
     /**
@@ -90,7 +90,7 @@ class linux_ip_socket_private_data final
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
      */
-    void send(uint8_t* data, size_t length);
+    void send(uint8_t* data, const size_t length);
 
   private:
     static inline constexpr int DRIVER_THREAD_PRIORITY = 1;
@@ -146,7 +146,7 @@ void LinuxIpSocketPoll(void* private_data);
  * @param data           The Buffer which data to send to connected remote partition
  * @param length         The size of the buffer
  */
-void LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length);
+void LinuxIpSocketSend(void* private_data, uint8_t* data, const size_t length);
 
 /**
  * @brief Initialize driver.
@@ -160,8 +160,8 @@ void LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length);
  * @param remote_device_configuration Configuration of remote device
  */
 void LinuxIpSocketInit(void* private_data,
-                       SystemBus bus_id,
-                       SystemDevice device_id,
+                       const SystemBus bus_id,
+                       const SystemDevice device_id,
                        const Socket_IP_Conf_T* const device_configuration,
                        const Socket_IP_Conf_T* const remote_device_configuration);
 } // namespace taste

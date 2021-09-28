@@ -42,8 +42,8 @@ linux_ip_socket_private_data::linux_ip_socket_private_data()
 }
 
 void
-linux_ip_socket_private_data::init(SystemBus bus_id,
-                                   SystemDevice device_id,
+linux_ip_socket_private_data::init(const SystemBus bus_id,
+                                   const SystemDevice device_id,
                                    const Socket_IP_Conf_T* const device_configuration,
                                    const Socket_IP_Conf_T* const remote_device_configuration)
 {
@@ -99,7 +99,7 @@ linux_ip_socket_private_data::poll()
 }
 
 void
-linux_ip_socket_private_data::send(uint8_t* data, size_t length)
+linux_ip_socket_private_data::send(uint8_t* data, const size_t length)
 {
     addrinfo* servinfo = nullptr;
 
@@ -244,7 +244,7 @@ LinuxIpSocketPoll(void* private_data)
 }
 
 void
-LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
+LinuxIpSocketSend(void* private_data, uint8_t* data, const size_t length)
 {
     linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
     self->send(data, length);
@@ -252,8 +252,8 @@ LinuxIpSocketSend(void* private_data, uint8_t* data, size_t length)
 
 void
 LinuxIpSocketInit(void* private_data,
-                  enum SystemBus bus_id,
-                  enum SystemDevice device_id,
+                  const enum SystemBus bus_id,
+                  const enum SystemDevice device_id,
                   const Socket_IP_Conf_T* const device_configuration,
                   const Socket_IP_Conf_T* const remote_device_configuration)
 {
