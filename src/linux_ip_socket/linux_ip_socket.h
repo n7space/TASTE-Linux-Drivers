@@ -91,10 +91,10 @@ class linux_ip_socket_private_data final
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
      */
-    void driver_send(uint8_t* data, const size_t length);
+    void driver_send(const uint8_t* data, const size_t length);
 
   private:
-    enum State
+    enum PacketParseState
     {
         STATE_WAIT,
         STATE_DATA_BYTE,
@@ -112,14 +112,14 @@ class linux_ip_socket_private_data final
     static constexpr int INVALID_SOCKET_ID = -1;
 
   private:
-    void find_addresses(addrinfo** target, const char* address, unsigned int port);
-    void parse_recv_buffer(size_t length);
-    void send_packet(int sockfd, size_t buffer_length);
+    void find_addresses(addrinfo** target, const char* address, const unsigned int port);
+    void parse_recv_buffer(const size_t length);
+    void send_packet(const int sockfd, const size_t buffer_length);
     int connect_to_remote_driver();
     void prepare_listen_socket();
     void initialize_packet_parser();
     void accept_connection(pollfd* table, int& table_size);
-    void read_data_or_disconnect(int table_index, pollfd* table, int& table_size);
+    void read_data_or_disconnect(const int table_index, pollfd* table, int& table_size);
 
   private:
     int m_listen_sockfd;
@@ -129,7 +129,7 @@ class linux_ip_socket_private_data final
     const Socket_IP_Conf_T* m_ip_remote_device_configuration;
     taste::Thread m_thread;
 
-    linux_ip_socket_private_data::State m_parse_state = STATE_WAIT;
+    PacketParseState m_parse_state;
     uint8_t m_message_buffer[BROKER_BUFFER_SIZE];
     size_t m_message_buffer_index;
 
@@ -157,7 +157,7 @@ void LinuxIpSocketPoll(void* private_data);
  * @param data           The Buffer which data to send to connected remote partition
  * @param length         The size of the buffer
  */
-void LinuxIpSocketSend(void* private_data, uint8_t* data, const size_t length);
+void LinuxIpSocketSend(void* private_data, const uint8_t* const data, const size_t length);
 
 /**
  * @brief Initialize driver.

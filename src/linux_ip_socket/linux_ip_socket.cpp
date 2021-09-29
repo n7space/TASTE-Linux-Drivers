@@ -69,7 +69,7 @@ linux_ip_socket_private_data::driver_poll()
     ++descriptors_table_count;
 
     while(true) {
-        int poll_result = ::poll(descriptors_table, descriptors_table_count, -1);
+        const int poll_result = ::poll(descriptors_table, descriptors_table_count, -1);
         if(poll_result == -1) {
             std::cerr << "poll() returned an error: " << strerror(errno) << std::endl;
             std::cerr << "aborting." << std::endl;
@@ -89,9 +89,9 @@ linux_ip_socket_private_data::driver_poll()
 }
 
 void
-linux_ip_socket_private_data::driver_send(uint8_t* data, const size_t length)
+linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
-    int sockfd = connect_to_remote_driver();
+    const int sockfd = connect_to_remote_driver();
     if(sockfd == INVALID_SOCKET_ID) {
         return;
     }
@@ -141,7 +141,7 @@ linux_ip_socket_private_data::driver_send(uint8_t* data, const size_t length)
 }
 
 void
-linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* address, unsigned int port)
+linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* address, const unsigned int port)
 {
     addrinfo hints;
     memset(&hints, 0, sizeof(addrinfo));
@@ -151,7 +151,7 @@ linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* addr
 
     const std::string remote_port = std::to_string(port);
 
-    int getaddrinfo_result = getaddrinfo(address, remote_port.c_str(), &hints, target);
+    const int getaddrinfo_result = getaddrinfo(address, remote_port.c_str(), &hints, target);
 
     if(getaddrinfo_result != 0) {
         std::cerr << "getaddrinfo returned an error: " << gai_strerror(getaddrinfo_result) << std::endl;
@@ -161,7 +161,7 @@ linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* addr
 }
 
 void
-linux_ip_socket_private_data::parse_recv_buffer(size_t length)
+linux_ip_socket_private_data::parse_recv_buffer(const size_t length)
 {
     for(size_t i = 0; i < length; ++i) {
         switch(m_parse_state) {
@@ -195,9 +195,9 @@ linux_ip_socket_private_data::parse_recv_buffer(size_t length)
 }
 
 void
-linux_ip_socket_private_data::send_packet(int sockfd, size_t buffer_length)
+linux_ip_socket_private_data::send_packet(const int sockfd, const size_t buffer_length)
 {
-    int send_result = send(sockfd, m_send_buffer, buffer_length, 0);
+    const int send_result = send(sockfd, m_send_buffer, buffer_length, 0);
     if(send_result == -1) {
         std::cerr << "sendto error\n";
         return;
@@ -218,13 +218,13 @@ linux_ip_socket_private_data::connect_to_remote_driver()
         return INVALID_SOCKET_ID;
     }
 
-    int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
+    const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
     if(sockfd == -1) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
         freeaddrinfo(address_array);
         return INVALID_SOCKET_ID;
     }
-    int connect_result = connect(sockfd, connect_address->ai_addr, connect_address->ai_addrlen);
+    const int connect_result = connect(sockfd, connect_address->ai_addr, connect_address->ai_addrlen);
     if(connect_result == -1) {
         std::cerr << "connect() returned an error: " << strerror(errno) << std::endl;
         freeaddrinfo(address_array);
@@ -248,7 +248,7 @@ linux_ip_socket_private_data::prepare_listen_socket()
             std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
             continue;
         }
-        int bind_result = bind(m_listen_sockfd, listen_address->ai_addr, listen_address->ai_addrlen);
+        const int bind_result = bind(m_listen_sockfd, listen_address->ai_addr, listen_address->ai_addrlen);
         if(bind_result == -1) {
             std::cerr << "bind() returned an error: " << strerror(errno) << std::endl;
             continue;
@@ -264,7 +264,7 @@ linux_ip_socket_private_data::prepare_listen_socket()
 
     freeaddrinfo(address_array);
 
-    int listen_result = listen(m_listen_sockfd, DRIVER_MAX_CONNECTIONS);
+    const int listen_result = listen(m_listen_sockfd, DRIVER_MAX_CONNECTIONS);
     if(listen_result == -1) {
         std::cerr << "Cannot listen on socket\n";
         abort();
@@ -282,7 +282,7 @@ linux_ip_socket_private_data::accept_connection(pollfd* table, int& table_size)
 {
     sockaddr_storage remote_addr;
     socklen_t remote_addr_size = sizeof(sockaddr_storage);
-    int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
+    const int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
     if(new_sockfd == -1) {
         std::cerr << "accept() returned an error: " << std::strerror(errno) << std::endl;
     } else {
@@ -294,9 +294,9 @@ linux_ip_socket_private_data::accept_connection(pollfd* table, int& table_size)
 }
 
 void
-linux_ip_socket_private_data::read_data_or_disconnect(int table_index, pollfd* table, int& table_size)
+linux_ip_socket_private_data::read_data_or_disconnect(const int table_index, pollfd* table, int& table_size)
 {
-    int recv_result = recv(table[table_index].fd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE, 0);
+    const int recv_result = recv(table[table_index].fd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE, 0);
     if(recv_result == -1) {
         std::cerr << "recv() returned an error: " << std::strerror(errno) << std::endl;
     } else if(recv_result == 0) {
@@ -317,7 +317,7 @@ LinuxIpSocketPoll(void* private_data)
 }
 
 void
-LinuxIpSocketSend(void* private_data, uint8_t* data, const size_t length)
+LinuxIpSocketSend(void* private_data, const uint8_t* const data, const size_t length)
 {
     linux_ip_socket_private_data* self = reinterpret_cast<linux_ip_socket_private_data*>(private_data);
     self->driver_send(data, length);
