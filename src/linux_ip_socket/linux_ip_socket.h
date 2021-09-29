@@ -35,6 +35,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
+#include <poll.h>
 
 #include <Thread.h>
 #include <system_spec.h>
@@ -59,7 +60,7 @@ class linux_ip_socket_private_data final
     /**
      * @brief  Default constructor.
      *
-     * Construct empty object, which needs to be initialized using @link init
+     * Construct empty object, which needs to be initialized using @link linux_ip_socket_private_data::init
      * before usage.
      */
     linux_ip_socket_private_data();
@@ -74,44 +75,54 @@ class linux_ip_socket_private_data final
      * @param device_configuration Configuration of device
      * @param remote_device_configuration Configuration of remote device
      */
-    void init(const SystemBus bus_id,
-              const SystemDevice device_id,
-              const Socket_IP_Conf_T* const device_configuration,
-              const Socket_IP_Conf_T* const remote_device_configuration);
+    void driver_init(const SystemBus bus_id,
+                     const SystemDevice device_id,
+                     const Socket_IP_Conf_T* const device_configuration,
+                     const Socket_IP_Conf_T* const remote_device_configuration);
     /**
      * @brief Receive data from remote partitions.
      *
      * This function receives data from remote partition and sends it to the Broker.
      */
-    void poll();
+    void driver_poll();
     /**
      * @brief send data to remote partition.
      *
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
      */
-    void send(uint8_t* data, const size_t length);
+    void driver_send(uint8_t* data, const size_t length);
 
   private:
-    static inline constexpr int DRIVER_THREAD_PRIORITY = 1;
-    static inline constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
-    static inline constexpr size_t DRIVER_SEND_BUFFER_SIZE = 256;
-    static inline constexpr size_t DRIVER_RECV_BUFFER_SIZE = 256;
-    static inline constexpr uint8_t START_BYTE = 0x00;
-    static inline constexpr uint8_t STOP_BYTE = 0xFF;
-    static inline constexpr uint8_t ESCAPE_BYTE = 0xFE;
-
-  private:
-    void fill_addrinfo(addrinfo** target, const char* address, unsigned int port);
-    void parse_recv_buffer(int length);
-
     enum State
     {
         STATE_WAIT,
         STATE_DATA_BYTE,
         STATE_ESCAPE_BYTE,
     };
-    int m_ip_sockfd;
+
+    static constexpr int DRIVER_THREAD_PRIORITY = 1;
+    static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
+    static constexpr int DRIVER_MAX_CONNECTIONS = 1;
+    static constexpr size_t DRIVER_SEND_BUFFER_SIZE = 256;
+    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 256;
+    static constexpr uint8_t START_BYTE = 0x00;
+    static constexpr uint8_t STOP_BYTE = 0xFF;
+    static constexpr uint8_t ESCAPE_BYTE = 0xFE;
+    static constexpr int INVALID_SOCKET_ID = -1;
+
+  private:
+    void find_addresses(addrinfo** target, const char* address, unsigned int port);
+    void parse_recv_buffer(size_t length);
+    void send_packet(int sockfd, size_t buffer_length);
+    int connect_to_remote_driver();
+    void prepare_listen_socket();
+    void initialize_packet_parser();
+    void accept_connection(pollfd* table, int& table_size);
+    void read_data_or_disconnect(int table_index, pollfd* table, int& table_size);
+
+  private:
+    int m_listen_sockfd;
     enum SystemBus m_ip_device_bus_id;
     enum SystemDevice m_ip_device_id;
     const Socket_IP_Conf_T* m_ip_device_configuration;
