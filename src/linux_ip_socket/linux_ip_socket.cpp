@@ -61,11 +61,12 @@ linux_ip_socket_private_data::driver_poll()
 {
     prepare_listen_socket();
 
+    // number of connections plus listen socket
     const int descriptors_table_size = DRIVER_MAX_CONNECTIONS + 1;
     struct pollfd descriptors_table[descriptors_table_size];
     int descriptors_table_count = 0;
-    descriptors_table[0].fd = m_listen_sockfd;
-    descriptors_table[0].events = POLLIN;
+    descriptors_table[descriptors_table_count].fd = m_listen_sockfd;
+    descriptors_table[descriptors_table_count].events = POLLIN;
     ++descriptors_table_count;
 
     while(true) {
@@ -136,7 +137,6 @@ linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_
     m_send_buffer[send_buffer_index] = STOP_BYTE;
     ++send_buffer_index;
     send_packet(sockfd, send_buffer_index);
-    send_buffer_index = 0;
     close(sockfd);
 }
 
@@ -211,7 +211,7 @@ linux_ip_socket_private_data::connect_to_remote_driver()
 
     find_addresses(&address_array, m_ip_remote_device_configuration->address, m_ip_remote_device_configuration->port);
 
-    addrinfo* connect_address = address_array;
+    const addrinfo* connect_address = address_array;
 
     if(connect_address == nullptr) {
         std::cerr << "Cannot find remote address." << std::endl;
@@ -219,19 +219,18 @@ linux_ip_socket_private_data::connect_to_remote_driver()
     }
 
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
+    freeaddrinfo(address_array);
     if(sockfd == -1) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
-        freeaddrinfo(address_array);
+
         return INVALID_SOCKET_ID;
     }
     const int connect_result = connect(sockfd, connect_address->ai_addr, connect_address->ai_addrlen);
     if(connect_result == -1) {
         std::cerr << "connect() returned an error: " << strerror(errno) << std::endl;
-        freeaddrinfo(address_array);
         return INVALID_SOCKET_ID;
     }
 
-    freeaddrinfo(address_array);
     return sockfd;
 }
 
