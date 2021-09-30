@@ -58,7 +58,7 @@ class linux_ip_socket_private_data final
 {
   public:
     /**
-     * @brief  Default constructor.
+     * @brief  Constructor.
      *
      * Construct empty object, which needs to be initialized using @link linux_ip_socket_private_data::init
      * before usage.

@@ -9,7 +9,7 @@ enum RemoteInterface
 
 enum SystemPartition
 {
-    PARTITION_INVALID_ID,
+    INVALID_PARTITION,
     X86_PARTITION,
 };
 
