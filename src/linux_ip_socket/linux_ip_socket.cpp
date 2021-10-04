@@ -166,10 +166,14 @@ linux_ip_socket_private_data::parse_recv_buffer(const size_t length)
 void
 linux_ip_socket_private_data::send_packet(const int sockfd, const size_t buffer_length)
 {
-    const int send_result = send(sockfd, m_send_buffer, buffer_length, 0);
-    if(send_result == SEND_ERROR) {
-        std::cerr << "sendto error\n";
-        return;
+    size_t bytes_sent = 0;
+    while(bytes_sent < buffer_length) {
+        const int send_result = send(sockfd, m_send_buffer + bytes_sent, buffer_length - bytes_sent, 0);
+        if(send_result == SEND_ERROR) {
+            std::cerr << "sendto error\n";
+            return;
+        }
+        bytes_sent += send_result;
     }
 }
 

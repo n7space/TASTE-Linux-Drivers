@@ -104,8 +104,8 @@ class linux_ip_socket_private_data final
     static constexpr int DRIVER_THREAD_PRIORITY = 1;
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static constexpr int DRIVER_MAX_CONNECTIONS = 1;
-    static constexpr size_t DRIVER_SEND_BUFFER_SIZE = 256;
-    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 256;
+    static constexpr size_t DRIVER_SEND_BUFFER_SIZE = 8 * 1024;
+    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 8 * 1024;
     static constexpr uint8_t START_BYTE = 0x00;
     static constexpr uint8_t STOP_BYTE = 0xFF;
     static constexpr uint8_t ESCAPE_BYTE = 0xFE;
