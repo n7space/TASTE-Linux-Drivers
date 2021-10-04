@@ -110,6 +110,14 @@ class linux_ip_socket_private_data final
     static constexpr uint8_t STOP_BYTE = 0xFF;
     static constexpr uint8_t ESCAPE_BYTE = 0xFE;
     static constexpr int INVALID_SOCKET_ID = -1;
+    static constexpr int POLL_NO_TIMEOUT = -1;
+    static constexpr int POLL_ERROR = -1;
+    static constexpr int SEND_ERROR = -1;
+    static constexpr int RECV_ERROR = -1;
+    static constexpr int RECV_CONNECTION_SHUTDOWN = 0;
+    static constexpr int CONNECT_ERROR = -1;
+    static constexpr int LISTEN_ERROR = -1;
+    static constexpr int BIND_ERROR = -1;
 
   private:
     void find_addresses(addrinfo** target, const char* address, const unsigned int port);
@@ -118,8 +126,10 @@ class linux_ip_socket_private_data final
     int connect_to_remote_driver();
     void prepare_listen_socket();
     void initialize_packet_parser();
-    void accept_connection(pollfd* table, int& table_size);
-    void read_data_or_disconnect(const int table_index, pollfd* table, int& table_size);
+    bool accept_connection(pollfd* table);
+    void handle_connection(pollfd* table);
+    bool read_data_or_disconnect(pollfd* table);
+    size_t encode_data(const uint8_t* const data, const size_t length, size_t& index);
 
   private:
     int m_listen_sockfd;
@@ -130,6 +140,9 @@ class linux_ip_socket_private_data final
     taste::Thread m_thread;
 
     PacketParseState m_parse_state;
+    bool m_encode_started;
+    bool m_escape;
+    bool m_encode_finished;
     uint8_t m_message_buffer[BROKER_BUFFER_SIZE];
     size_t m_message_buffer_index;
 

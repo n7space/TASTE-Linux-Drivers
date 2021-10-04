@@ -61,29 +61,28 @@ linux_ip_socket_private_data::driver_poll()
 {
     prepare_listen_socket();
 
-    // number of connections plus listen socket
-    const int descriptors_table_size = DRIVER_MAX_CONNECTIONS + 1;
-    struct pollfd descriptors_table[descriptors_table_size];
-    int descriptors_table_count = 0;
-    descriptors_table[descriptors_table_count].fd = m_listen_sockfd;
-    descriptors_table[descriptors_table_count].events = POLLIN;
-    ++descriptors_table_count;
+    // only one listen socket
+    const int listen_descriptors_table_size = 1;
+    struct pollfd listen_descriptors_table[listen_descriptors_table_size];
+    listen_descriptors_table[0].fd = m_listen_sockfd;
+    listen_descriptors_table[0].events = POLLIN;
+
+    // only one active connection
+    const int connected_descriptors_table_size = 1;
+    struct pollfd connected_descriptors_table[connected_descriptors_table_size];
 
     while(true) {
-        const int poll_result = ::poll(descriptors_table, descriptors_table_count, -1);
-        if(poll_result == -1) {
+        // wait for data on listen without timeout
+        const int poll_result = ::poll(listen_descriptors_table, listen_descriptors_table_size, POLL_NO_TIMEOUT);
+        if(poll_result == POLL_ERROR) {
             std::cerr << "poll() returned an error: " << strerror(errno) << std::endl;
             std::cerr << "aborting." << std::endl;
             abort();
         }
 
-        for(int descriptor_index = 0; descriptor_index < descriptors_table_count; ++descriptor_index) {
-            if(descriptors_table[descriptor_index].revents & POLLIN) {
-                if(descriptor_index == 0) {
-                    accept_connection(descriptors_table, descriptors_table_count);
-                } else {
-                    read_data_or_disconnect(descriptor_index, descriptors_table, descriptors_table_count);
-                }
+        if(listen_descriptors_table[0].revents & POLLIN) {
+            if(accept_connection(connected_descriptors_table)) {
+                handle_connection(connected_descriptors_table);
             }
         }
     }
@@ -97,46 +96,16 @@ linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_
         return;
     }
 
-    size_t send_buffer_index = 0;
-
-    m_send_buffer[0] = START_BYTE;
-    ++send_buffer_index;
-
+    m_encode_started = false;
+    m_escape = false;
+    m_encode_finished = false;
     size_t index = 0;
-    bool escape = false;
-    while(index < length) {
-        if(escape) {
-            m_send_buffer[send_buffer_index] = data[index];
-            ++send_buffer_index;
-            ++index;
-            escape = false;
-        } else if(data[index] == START_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            escape = true;
-        } else if(data[index] == ESCAPE_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            escape = true;
-        } else if(data[index] == STOP_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            escape = true;
-        } else {
-            m_send_buffer[send_buffer_index] = data[index];
-            ++send_buffer_index;
-            ++index;
-        }
 
-        if(send_buffer_index >= DRIVER_SEND_BUFFER_SIZE) {
-            send_packet(sockfd, DRIVER_SEND_BUFFER_SIZE);
-            send_buffer_index = 0;
-        }
+    while(!m_encode_finished) {
+        size_t packet_length = encode_data(data, length, index);
+        send_packet(sockfd, packet_length);
     }
 
-    m_send_buffer[send_buffer_index] = STOP_BYTE;
-    ++send_buffer_index;
-    send_packet(sockfd, send_buffer_index);
     close(sockfd);
 }
 
@@ -198,7 +167,7 @@ void
 linux_ip_socket_private_data::send_packet(const int sockfd, const size_t buffer_length)
 {
     const int send_result = send(sockfd, m_send_buffer, buffer_length, 0);
-    if(send_result == -1) {
+    if(send_result == SEND_ERROR) {
         std::cerr << "sendto error\n";
         return;
     }
@@ -220,13 +189,13 @@ linux_ip_socket_private_data::connect_to_remote_driver()
 
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
     freeaddrinfo(address_array);
-    if(sockfd == -1) {
+    if(sockfd == INVALID_SOCKET_ID) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
 
         return INVALID_SOCKET_ID;
     }
     const int connect_result = connect(sockfd, connect_address->ai_addr, connect_address->ai_addrlen);
-    if(connect_result == -1) {
+    if(connect_result == CONNECT_ERROR) {
         std::cerr << "connect() returned an error: " << strerror(errno) << std::endl;
         return INVALID_SOCKET_ID;
     }
@@ -243,12 +212,12 @@ linux_ip_socket_private_data::prepare_listen_socket()
     addrinfo* listen_address = nullptr;
     for(listen_address = address_array; listen_address != nullptr; listen_address = listen_address->ai_next) {
         m_listen_sockfd = socket(listen_address->ai_family, listen_address->ai_socktype, listen_address->ai_protocol);
-        if(m_listen_sockfd == -1) {
+        if(m_listen_sockfd == INVALID_SOCKET_ID) {
             std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
             continue;
         }
         const int bind_result = bind(m_listen_sockfd, listen_address->ai_addr, listen_address->ai_addrlen);
-        if(bind_result == -1) {
+        if(bind_result == BIND_ERROR) {
             std::cerr << "bind() returned an error: " << strerror(errno) << std::endl;
             continue;
         }
@@ -264,7 +233,7 @@ linux_ip_socket_private_data::prepare_listen_socket()
     freeaddrinfo(address_array);
 
     const int listen_result = listen(m_listen_sockfd, DRIVER_MAX_CONNECTIONS);
-    if(listen_result == -1) {
+    if(listen_result == LISTEN_ERROR) {
         std::cerr << "Cannot listen on socket\n";
         abort();
     }
@@ -276,34 +245,113 @@ linux_ip_socket_private_data::initialize_packet_parser()
     m_parse_state = STATE_WAIT;
 }
 
-void
-linux_ip_socket_private_data::accept_connection(pollfd* table, int& table_size)
+bool
+linux_ip_socket_private_data::accept_connection(pollfd* table)
 {
     sockaddr_storage remote_addr;
     socklen_t remote_addr_size = sizeof(sockaddr_storage);
     const int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
-    if(new_sockfd == -1) {
+    if(new_sockfd == INVALID_SOCKET_ID) {
         std::cerr << "accept() returned an error: " << std::strerror(errno) << std::endl;
+        table[0].fd = 0;
+        table[0].events = 0;
+        return false;
     } else {
         initialize_packet_parser();
-        table[table_size].fd = new_sockfd;
-        table[table_size].events = POLLIN;
-        ++table_size;
+        table[0].fd = new_sockfd;
+        table[0].events = POLLIN;
+        return true;
     }
 }
 
 void
-linux_ip_socket_private_data::read_data_or_disconnect(const int table_index, pollfd* table, int& table_size)
+linux_ip_socket_private_data::handle_connection(pollfd* table)
 {
-    const int recv_result = recv(table[table_index].fd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE, 0);
-    if(recv_result == -1) {
+    while(true) {
+        // wait for data on listen without timeout
+        const int poll_result = ::poll(table, 1, POLL_NO_TIMEOUT);
+        if(poll_result == POLL_ERROR) {
+            std::cerr << "poll() returned an error: " << strerror(errno) << std::endl;
+            std::cerr << "aborting." << std::endl;
+            abort();
+        }
+
+        if(table[0].revents & POLLIN) {
+            if(!read_data_or_disconnect(table)) {
+                break;
+            }
+        }
+    }
+}
+
+bool
+linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
+{
+    const int recv_result = recv(table[0].fd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE, 0);
+    if(recv_result == RECV_ERROR) {
         std::cerr << "recv() returned an error: " << std::strerror(errno) << std::endl;
-    } else if(recv_result == 0) {
-        --table_size;
-        close(table[table_size].fd);
+        close(table[0].fd);
+        table[0].fd = 0;
+        table[0].events = 0;
+        return false;
+    } else if(recv_result == RECV_CONNECTION_SHUTDOWN) {
+        close(table[0].fd);
+        table[0].fd = 0;
+        table[0].events = 0;
+        return false;
     } else {
         parse_recv_buffer(recv_result);
+        return true;
     }
+}
+
+size_t
+linux_ip_socket_private_data::encode_data(const uint8_t* const data, const size_t length, size_t& index)
+{
+    size_t send_buffer_index = 0;
+
+    if(!m_encode_started) {
+        m_send_buffer[0] = START_BYTE;
+        ++send_buffer_index;
+        m_encode_started = true;
+    }
+
+    while(index < length) {
+        if(m_escape) {
+            m_send_buffer[send_buffer_index] = data[index];
+            ++send_buffer_index;
+            ++index;
+            m_escape = false;
+        } else if(data[index] == START_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
+            ++send_buffer_index;
+            m_escape = true;
+        } else if(data[index] == ESCAPE_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
+            ++send_buffer_index;
+            m_escape = true;
+        } else if(data[index] == STOP_BYTE) {
+            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
+            ++send_buffer_index;
+            m_escape = true;
+        } else {
+            m_send_buffer[send_buffer_index] = data[index];
+            ++send_buffer_index;
+            ++index;
+        }
+
+        if(send_buffer_index == DRIVER_SEND_BUFFER_SIZE) {
+            return send_buffer_index;
+        }
+    }
+
+    if(index == length) {
+        m_send_buffer[send_buffer_index] = STOP_BYTE;
+        ++send_buffer_index;
+        m_encode_finished = true;
+    }
+
+    return send_buffer_index;
 }
 
 namespace taste {
