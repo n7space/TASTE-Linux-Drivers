@@ -20,15 +20,19 @@
  * limitations under the License.
  */
 
-#ifndef REQUEST_SIZE_H
-#define REQUEST_SIZE_H
+#ifndef THREAD_H
+#define THREAD_H
 
-#include <stdint.h>
+#include <cstdint>
 
-#define GENERIC_LINUX_BUFFER_SIZE (4)
+namespace taste {
+class Thread
+{
+  public:
+    Thread(const int priority, const size_t stack_size);
 
-#define FUNCTION1_PONG_REQUEST_SIZE (sizeof(int))
-
-#define FUNCTION2_PING_REQUEST_SIZE (sizeof(int))
+    void start(void (*method)(void*), void* param);
+};
+} // namespace taste
 
 #endif
