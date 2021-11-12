@@ -1,0 +1,15 @@
+LINUX-SERIAL-CCSDS-DRIVER DEFINITIONS AUTOMATIC TAGS ::= BEGIN
+
+Serial-CCSDS-Linux-Baudrate-T  ::= ENUMERATED {b9600, b19200, b38400, b57600, b115200, b230400}
+
+Serial-CCSDS-Linux-Parity-T    ::= ENUMERATED {even, odd}
+
+Serial-CCSDS-Linux-Conf-T ::= SEQUENCE {
+   devname        IA5String (SIZE (1..24)),
+   speed          Serial-CCSDS-Linux-Baudrate-T OPTIONAL,
+   parity         Serial-CCSDS-Linux-Parity-T OPTIONAL,
+   bits           INTEGER (7 .. 8) OPTIONAL,
+   use-paritybit  BOOLEAN  OPTIONAL
+}
+
+END

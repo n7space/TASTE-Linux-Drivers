@@ -25,6 +25,10 @@
 
 #include <cstdint>
 
+typedef uint64_t asn1SccUint64;
+typedef asn1SccUint64 asn1SccUint;
+typedef bool flag;
+
 typedef uint32_t Port_T;
 
 typedef enum
@@ -52,5 +56,44 @@ typedef struct
     } exist;
 
 } Socket_IP_Conf_T;
+
+typedef enum
+{
+    b9600 = 0,
+    b19200 = 1,
+    b38400 = 2,
+    b57600 = 3,
+    b115200 = 4,
+    b230400 = 5
+} Serial_CCSDS_Linux_Baudrate_T;
+
+typedef enum
+{
+    even = 0,
+    odd = 1
+} Serial_CCSDS_Linux_Parity_T;
+
+typedef char Serial_CCSDS_Linux_Conf_T_devname[25];
+typedef asn1SccUint Serial_CCSDS_Linux_Conf_T_bits;
+
+typedef flag Serial_CCSDS_Linux_Conf_T_use_paritybit;
+
+typedef struct
+{
+    Serial_CCSDS_Linux_Conf_T_devname devname;
+    Serial_CCSDS_Linux_Baudrate_T speed;
+    Serial_CCSDS_Linux_Parity_T parity;
+    Serial_CCSDS_Linux_Conf_T_bits bits;
+    Serial_CCSDS_Linux_Conf_T_use_paritybit use_paritybit;
+
+    struct
+    {
+        unsigned int speed : 1;
+        unsigned int parity : 1;
+        unsigned int bits : 1;
+        unsigned int use_paritybit : 1;
+    } exist;
+
+} Serial_CCSDS_Linux_Conf_T;
 
 #endif
