@@ -20,15 +20,37 @@
  * limitations under the License.
  */
 
-#ifndef REQUEST_SIZE_H
-#define REQUEST_SIZE_H
+#ifndef DRIVERS_CONFIG_H
+#define DRIVERS_CONFIG_H
 
-#include <stdint.h>
+#include <cstdint>
 
-#define GENERIC_LINUX_BUFFER_SIZE (4)
+typedef uint32_t Port_T;
 
-#define FUNCTION1_PONG_REQUEST_SIZE (sizeof(int))
+typedef enum
+{
+    ipv4 = 0,
+    ipv6 = 1
+} Version_T;
 
-#define FUNCTION2_PING_REQUEST_SIZE (sizeof(int))
+#define Version_T_ipv4 ipv4
+#define Version_T_ipv6 ipv6
+
+typedef char Socket_IP_Conf_T_devname[21];
+typedef char Socket_IP_Conf_T_address[41];
+
+typedef struct
+{
+    Socket_IP_Conf_T_devname devname;
+    Socket_IP_Conf_T_address address;
+    Version_T version;
+    Port_T port;
+
+    struct
+    {
+        unsigned int version : 1;
+    } exist;
+
+} Socket_IP_Conf_T;
 
 #endif

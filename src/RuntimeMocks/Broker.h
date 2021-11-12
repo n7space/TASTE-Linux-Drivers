@@ -20,15 +20,16 @@
  * limitations under the License.
  */
 
-#ifndef REQUEST_SIZE_H
-#define REQUEST_SIZE_H
+#ifndef BROKER_H
+#define BROKER_H
 
-#include <stdint.h>
+#include <cstdint>
+#include <cstddef>
+#include "system_spec.h"
 
-#define GENERIC_LINUX_BUFFER_SIZE (4)
+#define BROKER_BUFFER_SIZE (8)
 
-#define FUNCTION1_PONG_REQUEST_SIZE (sizeof(int))
-
-#define FUNCTION2_PING_REQUEST_SIZE (sizeof(int))
+void Broker_deliver_request(const enum RemoteInterface interface, const uint8_t* const data, const size_t length);
+void Broker_receive_packet(uint8_t* const data, const size_t length);
 
 #endif
