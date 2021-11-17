@@ -1,3 +1,6 @@
 [submodule "cmake"]
 	path = cmake
 	url = https://github.com/n7space/cmake-tools
+[submodule "TASTE-Linux-Runtime"]
+	path = TASTE-Linux-Runtime
+	url = https://github.com/n7space/TASTE-Linux-Runtime.git
