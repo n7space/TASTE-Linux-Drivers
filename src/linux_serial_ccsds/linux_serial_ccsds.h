@@ -58,7 +58,15 @@ class linux_serial_ccsds_private_data final
      * Construct empty object, which needs to be initialized using @link linux_serial_ccsds_private_data::init
      * before usage.
      */
+
     linux_serial_ccsds_private_data();
+
+    /**
+     * @brief  Destructor.
+     *
+     * Destruct created object
+     */
+    ~linux_serial_ccsds_private_data();
 
     /**
      * @brief Initialize driver.
@@ -89,6 +97,22 @@ class linux_serial_ccsds_private_data final
     void driver_send(const uint8_t* data, const size_t length);
 
   private:
+    static constexpr int DRIVER_THREAD_PRIORITY = 1;
+    static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
+    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 8 * 1024;
+
+    void driver_init_baudrate(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
+    void driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
+    void driver_init_parity(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
+
+    int serialFd{ -1 };
+    enum SystemBus m_serial_device_bus_id;
+    enum SystemDevice m_serial_device_id;
+    const Serial_CCSDS_Linux_Conf_T* m_serial_device_configuration{};
+    const Serial_CCSDS_Linux_Conf_T* m_serial_remote_device_configuration{};
+    taste::Thread m_thread;
+
+    uint8_t m_recv_buffer[DRIVER_RECV_BUFFER_SIZE];
 };
 
 namespace taste {

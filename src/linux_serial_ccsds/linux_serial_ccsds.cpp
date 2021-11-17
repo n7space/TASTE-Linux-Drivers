@@ -22,7 +22,93 @@
 
 #include "linux_serial_ccsds.h"
 
-linux_serial_ccsds_private_data::linux_serial_ccsds_private_data() {}
+#include <fcntl.h>
+#include <cassert>
+#include <termios.h>
+#include <unistd.h>
+
+#include <cstdio>
+
+linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
+    : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
+{
+}
+
+linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
+{
+    if(serialFd != -1) {
+        close(serialFd);
+    } else {
+    }
+}
+
+inline void
+linux_serial_ccsds_private_data::driver_init_baudrate(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags)
+{
+    switch(device->speed) {
+        case b9600:
+            *cflags |= B9600;
+            break;
+        case b19200:
+            *cflags |= B19200;
+            break;
+        case b38400:
+            *cflags |= B38400;
+            break;
+        case b57600:
+            *cflags |= B57600;
+            break;
+        case b115200:
+            *cflags |= B115200;
+            break;
+        case b230400:
+            *cflags |= B230400;
+            break;
+        default:
+            assert("Not supported baudrate value");
+    }
+}
+
+inline void
+linux_serial_ccsds_private_data::driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags)
+{
+    switch(device->bits) {
+        case 5:
+            *cflags |= CS5;
+            break;
+        case 6:
+            *cflags |= CS6;
+            break;
+        case 7:
+            *cflags |= CS7;
+            break;
+        case 8:
+            *cflags |= CS8;
+            break;
+        default:
+            assert("Not supported character size");
+    }
+}
+
+inline void
+linux_serial_ccsds_private_data::driver_init_parity(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags)
+{
+    if(device->use_paritybit) {
+        *cflags |= PARENB;
+        switch(device->parity) {
+            case odd:
+                *cflags |= PARODD;
+                break;
+            case even:
+                *cflags &= ~PARODD;
+                break;
+            default:
+                assert("Not supported parity type");
+        }
+    } else {
+        *cflags &= ~PARENB;
+    }
+}
 
 void
 linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
@@ -30,16 +116,68 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
                                              const Serial_CCSDS_Linux_Conf_T* const device_configuration,
                                              const Serial_CCSDS_Linux_Conf_T* const remote_device_configuration)
 {
+    m_serial_device_bus_id = bus_id;
+    m_serial_device_id = device_id;
+    m_serial_device_configuration = device_configuration;
+    m_serial_remote_device_configuration = remote_device_configuration;
+
+    /// Open UART device
+    /**
+     * Access mode		O_RDWR - read write access mode
+     * Blocking mode	O_NDELAY - non blocking mode
+     * 					O_NOCTTY - pathname will refer to tty
+     */
+    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY | O_NDELAY);
+    assert(serialFd != -1);
+
+    /// Configure UART
+    struct termios options;
+
+    int cflags = 0;
+
+    driver_init_baudrate(device_configuration, &cflags);
+    driver_init_character_size(device_configuration, &cflags);
+    driver_init_parity(device_configuration, &cflags);
+
+    tcgetattr(serialFd, &options);
+    options.c_cflag = cflags | CLOCAL | CREAD; //<Set baud rate
+    options.c_iflag = IGNPAR;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    tcflush(serialFd, TCIFLUSH);
+    tcsetattr(serialFd, TCSANOW, &options);
+
+    m_thread.start(&taste::LinuxSerialCcsdsPoll, this);
 }
 
 void
 linux_serial_ccsds_private_data::driver_poll()
 {
+    size_t numOfRecvBytes {0};
+    while(1)
+    {
+        numOfRecvBytes = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
+        if(numOfRecvBytes > 0)
+        {
+            //todo process character here using extracted escaping module
+        }else
+        {
+            return;
+        }
+    }
 }
 
 void
 linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
+    if(serialFd != -1) {
+        int count = write(serialFd, data, length);
+        if(count < 0) {
+            printf("UART TX error \n");
+        }
+    } else {
+        assert("Serial was not opened.");
+    }
 }
 
 namespace taste {
