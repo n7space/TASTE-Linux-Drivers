@@ -26,8 +26,7 @@
 #include <cassert>
 #include <termios.h>
 #include <unistd.h>
-
-#include <cstdio>
+#include <iostream>
 
 linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
     : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
@@ -37,6 +36,7 @@ linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
 linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
 {
     if(serialFd != -1) {
+        printf("\n\r File closed");
         close(serialFd);
     } else {
     }
@@ -65,7 +65,8 @@ linux_serial_ccsds_private_data::driver_init_baudrate(const Serial_CCSDS_Linux_C
             *cflags |= B230400;
             break;
         default:
-            assert("Not supported baudrate value");
+            *cflags |= B115200;
+            std::cerr << "Not supported baudrate value, defaulting to 115200\r\n";
     }
 }
 
@@ -86,7 +87,8 @@ linux_serial_ccsds_private_data::driver_init_character_size(const Serial_CCSDS_L
             *cflags |= CS8;
             break;
         default:
-            assert("Not supported character size");
+            *cflags |= CS8;
+            std::cerr << "Not supported character size, defaulting to 8 bits\r\n";
     }
 }
 
@@ -103,7 +105,8 @@ linux_serial_ccsds_private_data::driver_init_parity(const Serial_CCSDS_Linux_Con
                 *cflags &= ~PARODD;
                 break;
             default:
-                assert("Not supported parity type");
+                *cflags &= ~PARENB;
+                std::cerr << "Not supported parity type deaulting to no parity";
         }
     } else {
         *cflags &= ~PARENB;
@@ -127,8 +130,11 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
      * Blocking mode	O_NDELAY - non blocking mode
      * 					O_NOCTTY - pathname will refer to tty
      */
-    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY | O_NDELAY);
-    assert(serialFd != -1);
+    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY); //| O_NDELAY);
+    if(serialFd == -1) {
+        std::cerr << "Error while opening a file \n\r";
+        exit(EXIT_FAILURE);
+    }
 
     /// Configure UART
     struct termios options;
@@ -140,7 +146,7 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
     driver_init_parity(device_configuration, &cflags);
 
     tcgetattr(serialFd, &options);
-    options.c_cflag = cflags | CLOCAL | CREAD; //<Set baud rate
+    options.c_cflag = cflags | CLOCAL | CREAD;
     options.c_iflag = IGNPAR;
     options.c_oflag = 0;
     options.c_lflag = 0;
@@ -153,16 +159,23 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
 void
 linux_serial_ccsds_private_data::driver_poll()
 {
-    size_t numOfRecvBytes {0};
-    while(1)
-    {
-        numOfRecvBytes = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
-        if(numOfRecvBytes > 0)
-        {
-            //todo process character here using extracted escaping module
-        }else
-        {
-            return;
+    ssize_t numOfRecvBytes{ 0 };
+    while(1) {
+        if(serialFd != -1) {
+            numOfRecvBytes = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
+            if(numOfRecvBytes > 0) {
+                printf("\nReceived:\n");
+                for(ssize_t i = 0; i < numOfRecvBytes; i++) {
+                    putchar(m_recv_buffer[i]);
+                }
+                // todo process character here using extracted escaping module
+            } else {
+                std::cerr << "Error while polling. Cannot read.\n\r";
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            std::cerr << "Error while polling. Wrong file descriptor\n\r";
+            exit(EXIT_FAILURE);
         }
     }
 }
@@ -173,10 +186,11 @@ linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const si
     if(serialFd != -1) {
         int count = write(serialFd, data, length);
         if(count < 0) {
-            printf("UART TX error \n");
+            std::cerr << "Serial write error\n\r";
         }
     } else {
-        assert("Serial was not opened.");
+        std::cerr << "Error while sending. Wrong file descriptor\n\r";
+        exit(EXIT_FAILURE);
     }
 }
 
