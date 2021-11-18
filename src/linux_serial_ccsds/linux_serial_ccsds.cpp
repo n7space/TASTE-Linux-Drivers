@@ -186,7 +186,8 @@ linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const si
         size_t index = 0;
         size_t packetLength = 0;
 
-        while(!Escaper_encode_packet(&escaper, data, length, &index, &packetLength)) {
+        while(!escaper.m_encode_finished) {
+            packetLength = Escaper_encode_packet(&escaper, data, length, &index);
             int count = write(serialFd, escaper.m_send_packet_buffer, packetLength);
             if(count < 0) {
                 std::cerr << "Serial write error\n\r";

@@ -52,7 +52,7 @@ main()
 void
 sendThreadMethod1(void* args)
 {
-    (void)args;
+    (int *)args;
     static constexpr int numOfExe{ 10 };
     for(uint16_t i = 0; i < numOfExe; i++) {
         printf("\n\rSender:");
@@ -65,7 +65,7 @@ sendThreadMethod1(void* args)
 void
 sendThreadMethod2(void* args)
 {
-    (void)args;
+    (int *)args;
     static constexpr int numOfExe{ 20 };
     for(uint16_t i = 0; i < numOfExe; i++) {
         printf("\n\rSender2");
