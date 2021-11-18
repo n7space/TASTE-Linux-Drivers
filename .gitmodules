@@ -4,3 +4,6 @@
 [submodule "TASTE-Linux-Runtime"]
 	path = TASTE-Linux-Runtime
 	url = https://github.com/n7space/TASTE-Linux-Runtime.git
+[submodule "TASTE-Runtime-Common"]
+	path = TASTE-Runtime-Common
+	url = https://github.com/n7space/TASTE-Runtime-Common
