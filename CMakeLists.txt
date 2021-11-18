@@ -55,5 +55,7 @@ include(CppCheck)
 include(ClangTidy)
 include(ClangFormat)
 include(Doxygen)
-  
+
+
+add_subdirectory(TASTE-Linux-Runtime/src)
 add_subdirectory(src)
