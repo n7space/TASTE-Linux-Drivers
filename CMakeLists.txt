@@ -58,4 +58,9 @@ include(Doxygen)
 
 
 add_subdirectory(TASTE-Linux-Runtime/src)
+add_subdirectory(TASTE-Runtime-Common/src/RuntimeCommon)
+add_subdirectory(TASTE-Runtime-Common/src/RuntimeMocks)
+add_subdirectory(TASTE-Runtime-Common/src/Packetizer)
+add_subdirectory(TASTE-Runtime-Common/src/Broker)
+add_subdirectory(TASTE-Runtime-Common/src/Escaper)
 add_subdirectory(src)
