@@ -10,8 +10,6 @@ target_include_directories(LinuxSerialCcsds
 target_link_libraries(LinuxSerialCcsds
   PRIVATE   common_build_options
             LinuxRuntime
-            TASTE::RuntimeMocks
-            TASTE::Escaper
   PUBLIC    TASTE::Broker
             TASTE::Escaper
             )

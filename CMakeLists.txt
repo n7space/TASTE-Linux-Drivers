@@ -56,7 +56,6 @@ include(ClangTidy)
 include(ClangFormat)
 include(Doxygen)
 
-
 add_subdirectory(TASTE-Linux-Runtime/src)
 add_subdirectory(TASTE-Runtime-Common/src/RuntimeCommon)
 add_subdirectory(TASTE-Runtime-Common/src/RuntimeMocks)

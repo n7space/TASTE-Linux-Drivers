@@ -37,7 +37,6 @@ linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
 {
     if(serialFd != -1) {
         close(serialFd);
-    } else {
     }
 }
 

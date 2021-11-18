@@ -9,10 +9,7 @@ target_include_directories(LinuxApp
 target_link_libraries(LinuxApp
   PRIVATE   common_build_options
             TASTE::LinuxSerialCcsds
-            TASTE::RuntimeMocks
             LinuxRuntime
-            pthread
-            TASTE::Escaper
-  PUBLIC    TASTE::Broker)
+            pthread)
 
 add_format_target(LinuxApp)

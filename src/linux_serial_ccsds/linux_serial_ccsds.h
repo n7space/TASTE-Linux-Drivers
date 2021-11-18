@@ -33,7 +33,6 @@
 #include <cstdint>
 
 #include <Thread.h>
-#include <Escaper.h>
 #include <system_spec.h>
 
 #include <drivers_config.h>
@@ -41,6 +40,7 @@
 extern "C"
 {
 #include <Broker.h>
+#include <Escaper.h>
 }
 
 /**
