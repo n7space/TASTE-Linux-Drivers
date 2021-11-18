@@ -12,6 +12,7 @@ target_link_libraries(LinuxApp
             TASTE::RuntimeMocks
             LinuxRuntime
             pthread
+            TASTE::Escaper
   PUBLIC    TASTE::Broker)
 
 add_format_target(LinuxApp)

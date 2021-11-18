@@ -11,7 +11,10 @@ target_link_libraries(LinuxSerialCcsds
   PRIVATE   common_build_options
             LinuxRuntime
             TASTE::RuntimeMocks
-  PUBLIC    TASTE::Broker)
+            TASTE::Escaper
+  PUBLIC    TASTE::Broker
+            TASTE::Escaper
+            )
 
 add_format_target(LinuxSerialCcsds)
 

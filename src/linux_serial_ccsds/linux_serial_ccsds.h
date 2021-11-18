@@ -33,6 +33,7 @@
 #include <cstdint>
 
 #include <Thread.h>
+#include <Escaper.h>
 #include <system_spec.h>
 
 #include <drivers_config.h>
@@ -113,6 +114,7 @@ class linux_serial_ccsds_private_data final
     taste::Thread m_thread;
 
     uint8_t m_recv_buffer[DRIVER_RECV_BUFFER_SIZE];
+    Escaper escaper{};
 };
 
 namespace taste {

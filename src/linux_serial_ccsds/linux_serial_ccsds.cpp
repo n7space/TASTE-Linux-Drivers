@@ -36,7 +36,6 @@ linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
 linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
 {
     if(serialFd != -1) {
-        printf("\n\r File closed");
         close(serialFd);
     } else {
     }
@@ -184,10 +183,17 @@ void
 linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
     if(serialFd != -1) {
-        int count = write(serialFd, data, length);
-        if(count < 0) {
-            std::cerr << "Serial write error\n\r";
+        Escaper_init_encode(&escaper);
+        size_t index = 0;
+        size_t packetLength = 0;
+
+        while(!Escaper_encode_packet(&escaper, data, length, &index, &packetLength)) {
+            int count = write(serialFd, escaper.m_send_packet_buffer, packetLength);
+            if(count < 0) {
+                std::cerr << "Serial write error\n\r";
+            }
         }
+
     } else {
         std::cerr << "Error while sending. Wrong file descriptor\n\r";
         exit(EXIT_FAILURE);
