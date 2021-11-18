@@ -157,16 +157,13 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
 void
 linux_serial_ccsds_private_data::driver_poll()
 {
-    ssize_t numOfRecvBytes{ 0 };
+    ssize_t length{ 0 };
+    Escaper_init_parser(&escaper);
     while(1) {
         if(serialFd != -1) {
-            numOfRecvBytes = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
-            if(numOfRecvBytes > 0) {
-                printf("\nReceived:\n");
-                for(ssize_t i = 0; i < numOfRecvBytes; i++) {
-                    putchar(m_recv_buffer[i]);
-                }
-                // todo process character here using extracted escaping module
+            length = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
+            if(length > 0) {
+                Escaper_parse_recv_buffer(&escaper, m_recv_buffer, length);
             } else {
                 std::cerr << "Error while polling. Cannot read.\n\r";
                 exit(EXIT_FAILURE);

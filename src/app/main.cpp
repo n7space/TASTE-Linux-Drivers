@@ -52,10 +52,9 @@ main()
 void
 sendThreadMethod1(void* args)
 {
-    (int *)args;
+    (int*)args;
     static constexpr int numOfExe{ 10 };
     for(uint16_t i = 0; i < numOfExe; i++) {
-        printf("\n\rSender:");
         serial1.driver_send(TEXT1, sizeof(TEXT1));
         serial2.driver_send(TEXT2, sizeof(TEXT2));
         usleep(500000);
@@ -65,7 +64,7 @@ sendThreadMethod1(void* args)
 void
 sendThreadMethod2(void* args)
 {
-    (int *)args;
+    (int*)args;
     static constexpr int numOfExe{ 20 };
     for(uint16_t i = 0; i < numOfExe; i++) {
         printf("\n\rSender2");
