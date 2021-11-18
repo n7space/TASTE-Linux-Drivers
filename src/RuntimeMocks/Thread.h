@@ -32,6 +32,12 @@ class Thread
     Thread(const int priority, const size_t stack_size);
 
     void start(void (*method)(void*), void* param);
+    void start(void (*method)(void*));
+    void join();
+
+  private:
+    int m_priority;
+    size_t m_stack_size;
 };
 } // namespace taste
 
