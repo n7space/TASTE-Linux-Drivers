@@ -4,7 +4,8 @@ target_sources(LinuxIpSocket
   PUBLIC    linux_ip_socket.h)
 
 target_include_directories(LinuxIpSocket
-  PRIVATE   ${CMAKE_SOURCE_DIR}/TASTE-Linux-Runtime/src)
+  PRIVATE   ${CMAKE_SOURCE_DIR}/TASTE-Linux-Runtime/src
+            ${CMAKE_SOURCE_DIR}/src/RuntimeMocks)
 
 target_link_libraries(LinuxIpSocket
   PRIVATE   common_build_options
