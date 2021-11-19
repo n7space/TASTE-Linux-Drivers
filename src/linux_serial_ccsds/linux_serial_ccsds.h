@@ -59,7 +59,6 @@ class linux_serial_ccsds_private_data final
      * Construct empty object, which needs to be initialized using @link linux_serial_ccsds_private_data::init
      * before usage.
      */
-
     linux_serial_ccsds_private_data();
 
     /**
@@ -90,7 +89,7 @@ class linux_serial_ccsds_private_data final
      */
     void driver_poll();
     /**
-     * @brief send data to remote partition.
+     * @brief Send data to remote partition.
      *
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
@@ -106,7 +105,7 @@ class linux_serial_ccsds_private_data final
     void driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
     void driver_init_parity(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
 
-    int serialFd{ -1 };
+    int serialFd;
     enum SystemBus m_serial_device_bus_id;
     enum SystemDevice m_serial_device_id;
     const Serial_CCSDS_Linux_Conf_T* m_serial_device_configuration{};
@@ -118,6 +117,23 @@ class linux_serial_ccsds_private_data final
 };
 
 namespace taste {
+
+/**
+ * @brief Initialize driver.
+ *
+ * Function is used by runtime to initialize the driver.
+ *
+ * @param private_data   Driver private data, allocated by runtime
+ * @param bus_id         Identifier of the bus, which is used by driver
+ * @param device_id      Identifier of the device
+ * @param device_configuration Configuration of device
+ * @param remote_device_configuration Configuration of remote device
+ */
+void LinuxSerialCcsdsInit(void* private_data,
+                          const SystemBus bus_id,
+                          const SystemDevice device_id,
+                          const Serial_CCSDS_Linux_Conf_T* const device_configuration,
+                          const Serial_CCSDS_Linux_Conf_T* const remote_device_configuration);
 
 /**
  * @brief Function which implements receiving data from remote partition.
@@ -138,23 +154,6 @@ void LinuxSerialCcsdsPoll(void* private_data);
  * @param length         The size of the buffer
  */
 void LinuxSerialCcsdsSend(void* private_data, const uint8_t* const data, const size_t length);
-
-/**
- * @brief Initialize driver.
- *
- * Function is used by runtime to initialize the driver.
- *
- * @param private_data   Driver private data, allocated by runtime
- * @param bus_id         Identifier of the bus, which is used by driver
- * @param device_id      Identifier of the device
- * @param device_configuration Configuration of device
- * @param remote_device_configuration Configuration of remote device
- */
-void LinuxSerialCcsdsInit(void* private_data,
-                          const SystemBus bus_id,
-                          const SystemDevice device_id,
-                          const Serial_CCSDS_Linux_Conf_T* const device_configuration,
-                          const Serial_CCSDS_Linux_Conf_T* const remote_device_configuration);
 } // namespace taste
 
 #endif

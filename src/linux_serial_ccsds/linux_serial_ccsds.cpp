@@ -29,7 +29,8 @@
 #include <iostream>
 
 linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
-    : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
+    : serialFd(-1)
+    , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
 {
 }
 
@@ -128,7 +129,7 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
      * Blocking mode	O_NDELAY - non blocking mode
      * 					O_NOCTTY - pathname will refer to tty
      */
-    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY); //| O_NDELAY);
+    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY);
     if(serialFd == -1) {
         std::cerr << "Error while opening a file \n\r";
         exit(EXIT_FAILURE);
@@ -200,6 +201,17 @@ linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const si
 namespace taste {
 
 void
+LinuxSerialCcsdsInit(void* private_data,
+                     const enum SystemBus bus_id,
+                     const enum SystemDevice device_id,
+                     const Serial_CCSDS_Linux_Conf_T* const device_configuration,
+                     const Serial_CCSDS_Linux_Conf_T* const remote_device_configuration)
+{
+    linux_serial_ccsds_private_data* self = reinterpret_cast<linux_serial_ccsds_private_data*>(private_data);
+    self->driver_init(bus_id, device_id, device_configuration, remote_device_configuration);
+}
+
+void
 LinuxSerialCcsdsPoll(void* private_data)
 {
     linux_serial_ccsds_private_data* self = reinterpret_cast<linux_serial_ccsds_private_data*>(private_data);
@@ -211,16 +223,5 @@ LinuxSerialCcsdsSend(void* private_data, const uint8_t* const data, const size_t
 {
     linux_serial_ccsds_private_data* self = reinterpret_cast<linux_serial_ccsds_private_data*>(private_data);
     self->driver_send(data, length);
-}
-
-void
-LinuxSerialCcsdsInit(void* private_data,
-                     const enum SystemBus bus_id,
-                     const enum SystemDevice device_id,
-                     const Serial_CCSDS_Linux_Conf_T* const device_configuration,
-                     const Serial_CCSDS_Linux_Conf_T* const remote_device_configuration)
-{
-    linux_serial_ccsds_private_data* self = reinterpret_cast<linux_serial_ccsds_private_data*>(private_data);
-    self->driver_init(bus_id, device_id, device_configuration, remote_device_configuration);
 }
 } // namespace taste
