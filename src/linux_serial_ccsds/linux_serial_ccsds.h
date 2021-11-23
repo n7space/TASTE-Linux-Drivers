@@ -99,7 +99,9 @@ class linux_serial_ccsds_private_data final
   private:
     static constexpr int DRIVER_THREAD_PRIORITY = 1;
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
-    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 8 * 1024;
+    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 1 * 1024;
+    static constexpr size_t ENCODED_PACKET_BUFFER_SIZE = 1 * 1024;
+    static constexpr size_t DECODED_PACKET_BUFFER_SIZE = 1 * 1024;
 
     void driver_init_baudrate(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
     void driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
@@ -113,6 +115,8 @@ class linux_serial_ccsds_private_data final
     taste::Thread m_thread;
 
     uint8_t m_recv_buffer[DRIVER_RECV_BUFFER_SIZE];
+    uint8_t m_encoded_packet_buffer[ENCODED_PACKET_BUFFER_SIZE];
+    uint8_t m_decoded_packet_buffer[DECODED_PACKET_BUFFER_SIZE];
     Escaper escaper{};
 };
 

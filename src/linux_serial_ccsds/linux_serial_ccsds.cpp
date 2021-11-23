@@ -31,6 +31,12 @@
 linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
     : serialFd(-1)
     , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
+    , escaper{
+        .m_encoded_packet_buffer = m_encoded_packet_buffer,
+        .m_encoded_packet_max_size = ENCODED_PACKET_BUFFER_SIZE,
+        .m_decoded_packet_buffer = m_decoded_packet_buffer,
+        .m_decoded_packet_max_size = DECODED_PACKET_BUFFER_SIZE,
+    }
 {
 }
 
@@ -122,7 +128,6 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
     m_serial_device_id = device_id;
     m_serial_device_configuration = device_configuration;
     m_serial_remote_device_configuration = remote_device_configuration;
-
     /// Open UART device
     /**
      * Access mode		O_RDWR - read write access mode
@@ -159,12 +164,12 @@ void
 linux_serial_ccsds_private_data::driver_poll()
 {
     ssize_t length{ 0 };
-    Escaper_init_parser(&escaper);
+    Escaper_start_decoder(&escaper);
     while(1) {
         if(serialFd != -1) {
             length = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
             if(length > 0) {
-                Escaper_parse_recv_buffer(&escaper, m_recv_buffer, length);
+                Escaper_decode_packet(&escaper, m_recv_buffer, length, Broker_receive_packet);
             } else {
                 std::cerr << "Error while polling. Cannot read.\n\r";
                 exit(EXIT_FAILURE);
@@ -180,13 +185,13 @@ void
 linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
     if(serialFd != -1) {
-        Escaper_init_encode(&escaper);
+        Escaper_start_encoder(&escaper);
         size_t index = 0;
         size_t packetLength = 0;
 
         while(!escaper.m_encode_finished) {
             packetLength = Escaper_encode_packet(&escaper, data, length, &index);
-            int count = write(serialFd, escaper.m_send_packet_buffer, packetLength);
+            int count = write(serialFd, escaper.m_encoded_packet_buffer, packetLength);
             if(count < 0) {
                 std::cerr << "Serial write error\n\r";
             }
