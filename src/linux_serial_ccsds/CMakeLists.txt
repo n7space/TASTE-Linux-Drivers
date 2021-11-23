@@ -10,10 +10,8 @@ target_include_directories(LinuxSerialCcsds
 
 target_link_libraries(LinuxSerialCcsds
   PRIVATE   common_build_options
-            LinuxRuntime
   PUBLIC    TASTE::Broker
-            TASTE::Escaper
-            )
+            TASTE::Escaper)
 
 add_format_target(LinuxSerialCcsds)
 

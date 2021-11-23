@@ -26,7 +26,6 @@
 /**
  * @file     linux_serial_ccsds.h
  * @brief    Driver for TASTE with uses UART for communication
-
  */
 
 #include <cstddef>

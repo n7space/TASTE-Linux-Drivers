@@ -32,10 +32,15 @@ linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
     : serialFd(-1)
     , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
     , escaper{
-        .m_encoded_packet_buffer = m_encoded_packet_buffer,
-        .m_encoded_packet_max_size = ENCODED_PACKET_BUFFER_SIZE,
-        .m_decoded_packet_buffer = m_decoded_packet_buffer,
-        .m_decoded_packet_max_size = DECODED_PACKET_BUFFER_SIZE,
+        Escaper_State_Wait,
+        false,
+        false,
+        false,
+        m_encoded_packet_buffer,
+        ENCODED_PACKET_BUFFER_SIZE,
+        m_decoded_packet_buffer,
+        DECODED_PACKET_BUFFER_SIZE,
+        0,
     }
 {
 }
@@ -130,9 +135,9 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
     m_serial_remote_device_configuration = remote_device_configuration;
     /// Open UART device
     /**
-     * Access mode		O_RDWR - read write access mode
-     * Blocking mode	O_NDELAY - non blocking mode
-     * 					O_NOCTTY - pathname will refer to tty
+     * Access mode      O_RDWR - read write access mode
+     * Blocking mode    O_NDELAY - non blocking mode
+     * File type        O_NOCTTY - pathname will refer to tty
      */
     serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY);
     if(serialFd == -1) {
