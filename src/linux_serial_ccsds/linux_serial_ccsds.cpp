@@ -31,18 +31,12 @@
 linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
     : serialFd(-1)
     , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
-    , escaper{
-        Escaper_State_Wait,
-        false,
-        false,
-        false,
-        m_encoded_packet_buffer,
-        ENCODED_PACKET_BUFFER_SIZE,
-        m_decoded_packet_buffer,
-        DECODED_PACKET_BUFFER_SIZE,
-        0,
-    }
 {
+    Escaper_init(&escaper,
+                 m_encoded_packet_buffer,
+                 ENCODED_PACKET_BUFFER_SIZE,
+                 m_decoded_packet_buffer,
+                 DECODED_PACKET_BUFFER_SIZE);
 }
 
 linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
