@@ -1,9 +1,12 @@
 add_executable(LinuxApp)
 target_sources(LinuxApp
-  PRIVATE    main.cpp)
+  PRIVATE   main.cpp
+            PacketSender.cpp
+  PUBLIC    PacketSender.h)
 
 target_include_directories(LinuxApp
-  PRIVATE   ${CMAKE_SOURCE_DIR}/src
+  PRIVATE   ${CMAKE_CURRENT_SOURCE_DIR}
+            ${CMAKE_SOURCE_DIR}/src
             ${CMAKE_SOURCE_DIR}/TASTE-Linux-Runtime/src)
 
 target_link_libraries(LinuxApp
@@ -11,6 +14,6 @@ target_link_libraries(LinuxApp
             TASTE::Packetizer
             TASTE::LinuxSerialCcsds
             LinuxRuntime
-            pthread)
+            Threads::Threads)
 
 add_format_target(LinuxApp)

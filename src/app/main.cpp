@@ -1,27 +1,37 @@
+/**@file
+ * This file is part of the TASTE Linux Runtime.
+ *
+ * @copyright 2021 N7 Space Sp. z o.o.
+ *
+ * TASTE Linux Runtime was developed under a programme of,
+ * and funded by, the European Space Agency (the "ESA").
+ *
+ * Licensed under the ESA Public License (ESA-PL) Permissive,
+ * Version 2.3 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://essr.esa.int/license/list
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 #include "linux_serial_ccsds/linux_serial_ccsds.h"
 
 #include <cstdio>
-#include <unistd.h>
-#include <cstring>
 
 #include "Thread.h"
 
-extern "C"
-{
-#include <Packetizer.h>
-}
-
-static constexpr uint8_t TEXT1[]{ "Hello\n\r" };
-static constexpr uint8_t TEXT2[]{ "Goodbye\n\r" };
+#include "PacketSender.h"
 
 static constexpr int SEND_THREAD_PRIORITY1 = 1;
 static constexpr int SEND_THREAD_STACK_SIZE1 = 65536;
 
 static constexpr int SEND_THREAD_PRIORITY2 = 1;
 static constexpr int SEND_THREAD_STACK_SIZE2 = 65536;
-
-static constexpr uint16_t DEVICE1_ID = 0;
-static constexpr uint16_t DEVICE2_ID = 1;
 
 static constexpr size_t NUMBER_OF_DEVICES = 2;
 
@@ -43,44 +53,14 @@ void* bus_to_driver_private_data[NUMBER_OF_DEVICES];
 void* bus_to_driver_send_function[NUMBER_OF_DEVICES];
 void* interface_to_deliver_function[NUMBER_OF_DEVICES]{ reinterpret_cast<void*>(device1_interface_deliver_function),
                                                         reinterpret_cast<void*>(device2_interface_deliver_function) };
-void sendThreadMethod1(void* args);
-void sendThreadMethod2(void* args);
-
-Packetizer packetizer{};
-
-static constexpr size_t DATA_SIZE1 = sizeof(TEXT1);
-static constexpr size_t PACKET_SIZE1 = SPACE_PACKET_PRIMARY_HEADER_SIZE + DATA_SIZE1 + SPACE_PACKET_ERROR_CONTROL_SIZE;
-uint8_t packetData1[PACKET_SIZE1];
-
-static constexpr size_t DATA_SIZE2 = sizeof(TEXT2);
-static constexpr size_t PACKET_SIZE2 = SPACE_PACKET_PRIMARY_HEADER_SIZE + DATA_SIZE2 + SPACE_PACKET_ERROR_CONTROL_SIZE;
-uint8_t packetData2[PACKET_SIZE2];
 
 int
 main()
 {
     printf("\n\rDemo app started\n\r");
 
-    memcpy(&packetData1[SPACE_PACKET_PRIMARY_HEADER_SIZE], TEXT1, DATA_SIZE1);
-    memcpy(&packetData2[SPACE_PACKET_PRIMARY_HEADER_SIZE], TEXT2, DATA_SIZE1);
-
-    Packetizer_init(&packetizer);
-    Packetizer_packetize(&packetizer,
-                         Packetizer_PacketType_Telemetry,
-                         DEVICE1_ID,
-                         DEVICE2_ID,
-                         packetData1,
-                         SPACE_PACKET_PRIMARY_HEADER_SIZE,
-                         DATA_SIZE1);
-
-    Packetizer_init(&packetizer);
-    Packetizer_packetize(&packetizer,
-                         Packetizer_PacketType_Telemetry,
-                         DEVICE2_ID,
-                         DEVICE1_ID,
-                         packetData2,
-                         SPACE_PACKET_PRIMARY_HEADER_SIZE,
-                         DATA_SIZE2);
+    PacketSender packetSender;
+    packetSender.Init();
 
     linux_serial_ccsds_private_data serial1{};
     linux_serial_ccsds_private_data serial2{};
@@ -94,36 +74,12 @@ main()
     serial1.driver_init(BUS_INVALID_ID, DEVICE_INVALID_ID, &device1, nullptr);
     serial2.driver_init(BUS_INVALID_ID, DEVICE_INVALID_ID, &device2, nullptr);
 
-    sendThread1.start(&sendThreadMethod1, &serial1);
-    sendThread2.start(&sendThreadMethod2, &serial2);
+    sendThread1.start(&PacketSender::SendThreadMethod1, &serial1);
+    sendThread2.start(&PacketSender::SendThreadMethod2, &serial2);
 
     sendThread1.join();
     sendThread2.join();
 
     printf("\n\rDemo app finished");
     return 0;
-}
-
-void
-sendThreadMethod1(void* args)
-{
-    linux_serial_ccsds_private_data* serial;
-    serial = reinterpret_cast<linux_serial_ccsds_private_data*>(args);
-    static constexpr int numOfExe{ 10 };
-    for(uint16_t i = 0; i < numOfExe; i++) {
-        serial->driver_send(packetData1, PACKET_SIZE1);
-        usleep(250000);
-    }
-}
-
-void
-sendThreadMethod2(void* args)
-{
-    linux_serial_ccsds_private_data* serial;
-    serial = reinterpret_cast<linux_serial_ccsds_private_data*>(args);
-    static constexpr int numOfExe{ 20 };
-    for(uint16_t i = 0; i < numOfExe; i++) {
-        serial->driver_send(packetData2, PACKET_SIZE2);
-        usleep(250000);
-    }
 }

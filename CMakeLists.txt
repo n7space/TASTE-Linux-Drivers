@@ -51,6 +51,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
 
   target_compile_options(common_build_options INTERFACE ${PROJECT_WARNINGS})
 
+find_package(Threads REQUIRED)
+  
 include(CppCheck)
 include(ClangTidy)
 include(ClangFormat)
