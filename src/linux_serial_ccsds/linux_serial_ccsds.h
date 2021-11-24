@@ -100,7 +100,7 @@ class linux_serial_ccsds_private_data final
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 1 * 1024;
     static constexpr size_t ENCODED_PACKET_BUFFER_SIZE = 1 * 1024;
-    static constexpr size_t DECODED_PACKET_BUFFER_SIZE = 1 * 1024;
+    static constexpr size_t DECODED_PACKET_BUFFER_SIZE = BROKER_BUFFER_SIZE;
 
     void driver_init_baudrate(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
     void driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
