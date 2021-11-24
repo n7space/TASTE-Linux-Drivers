@@ -8,6 +8,7 @@ target_include_directories(LinuxApp
 
 target_link_libraries(LinuxApp
   PRIVATE   common_build_options
+            TASTE::Packetizer
             TASTE::LinuxSerialCcsds
             LinuxRuntime
             pthread)
