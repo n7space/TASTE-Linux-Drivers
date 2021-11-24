@@ -29,7 +29,7 @@
 #include <iostream>
 
 linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
-    : serialFd(-1)
+    : m_serialFd(-1)
     , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
 {
     Escaper_init(&escaper,
@@ -41,8 +41,8 @@ linux_serial_ccsds_private_data::linux_serial_ccsds_private_data()
 
 linux_serial_ccsds_private_data::~linux_serial_ccsds_private_data()
 {
-    if(serialFd != -1) {
-        close(serialFd);
+    if(m_serialFd != -1) {
+        close(m_serialFd);
     }
 }
 
@@ -133,8 +133,8 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
      * Blocking mode    O_NDELAY - non blocking mode
      * File type        O_NOCTTY - pathname will refer to tty
      */
-    serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY);
-    if(serialFd == -1) {
+    m_serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY);
+    if(m_serialFd == -1) {
         std::cerr << "Error while opening a file \n\r";
         exit(EXIT_FAILURE);
     }
@@ -148,13 +148,13 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
     driver_init_character_size(device_configuration, &cflags);
     driver_init_parity(device_configuration, &cflags);
 
-    tcgetattr(serialFd, &options);
+    tcgetattr(m_serialFd, &options);
     options.c_cflag = cflags | CLOCAL | CREAD;
     options.c_iflag = IGNPAR;
     options.c_oflag = 0;
     options.c_lflag = 0;
-    tcflush(serialFd, TCIFLUSH);
-    tcsetattr(serialFd, TCSANOW, &options);
+    tcflush(m_serialFd, TCIFLUSH);
+    tcsetattr(m_serialFd, TCSANOW, &options);
 
     m_thread.start(&taste::LinuxSerialCcsdsPoll, this);
 }
@@ -165,8 +165,8 @@ linux_serial_ccsds_private_data::driver_poll()
     ssize_t length{ 0 };
     Escaper_start_decoder(&escaper);
     while(1) {
-        if(serialFd != -1) {
-            length = read(serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
+        if(m_serialFd != -1) {
+            length = read(m_serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
             if(length > 0) {
                 Escaper_decode_packet(&escaper, m_recv_buffer, length, Broker_receive_packet);
             } else {
@@ -183,19 +183,18 @@ linux_serial_ccsds_private_data::driver_poll()
 void
 linux_serial_ccsds_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
-    if(serialFd != -1) {
+    if(m_serialFd != -1) {
         Escaper_start_encoder(&escaper);
         size_t index = 0;
         size_t packetLength = 0;
 
-        while(!escaper.m_encode_finished) {
+        while(index < length) {
             packetLength = Escaper_encode_packet(&escaper, data, length, &index);
-            int count = write(serialFd, escaper.m_encoded_packet_buffer, packetLength);
+            int count = write(m_serialFd, m_encoded_packet_buffer, packetLength);
             if(count < 0) {
                 std::cerr << "Serial write error\n\r";
             }
         }
-
     } else {
         std::cerr << "Error while sending. Wrong file descriptor\n\r";
         exit(EXIT_FAILURE);

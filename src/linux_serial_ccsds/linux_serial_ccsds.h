@@ -106,7 +106,7 @@ class linux_serial_ccsds_private_data final
     void driver_init_character_size(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
     void driver_init_parity(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags);
 
-    int serialFd;
+    int m_serialFd;
     enum SystemBus m_serial_device_bus_id;
     enum SystemDevice m_serial_device_id;
     const Serial_CCSDS_Linux_Conf_T* m_serial_device_configuration{};
