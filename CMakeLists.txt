@@ -51,9 +51,16 @@ if(CMAKE_C_COMPILER_ID STREQUAL "Clang")
 
   target_compile_options(common_build_options INTERFACE ${PROJECT_WARNINGS})
 
+find_package(Threads REQUIRED)
+  
 include(CppCheck)
 include(ClangTidy)
 include(ClangFormat)
 include(Doxygen)
-  
+
+add_subdirectory(TASTE-Linux-Runtime/src)
+add_subdirectory(TASTE-Runtime-Common/src/RuntimeMocks)
+add_subdirectory(TASTE-Runtime-Common/src/Packetizer)
+add_subdirectory(TASTE-Runtime-Common/src/Broker)
+add_subdirectory(TASTE-Runtime-Common/src/Escaper)
 add_subdirectory(src)
