@@ -17,16 +17,17 @@ add_library(common_build_options INTERFACE)
 include(CommonBuildOptions)
 include(Sanitizers)
 
-option(TASTE_RUNTIME_COMMON_WARNINGS_AS_ERRORS
+option(TASTE_LINUX_DRIVERS_WARNINGS_AS_ERRORS
        "Treat compiler wargnings as errors"
        TRUE)
 
-if(OPTIONS_WARNINGS_AS_ERRORS)
+if(TASTE_LINUX_DRIVERS_WARNINGS_AS_ERRORS)
     log_option_enabled("warnings as errors")
-    set(CLANG_WARNINGS ${CLANG_WARNINGS} -Werror)
+    set(CLANG_WARNINGS -Werror)
 endif()
 
-set(CLANG_WARNINGS -Wall
+set(CLANG_WARNINGS ${CLANG_WARNINGS}
+                   -Wall
                    -Wextra
                    -Wpedantic
                    -Wshadow
