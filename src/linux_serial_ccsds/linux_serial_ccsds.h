@@ -55,7 +55,7 @@ class linux_serial_ccsds_private_data final
     /**
      * @brief  Constructor.
      *
-     * Construct empty object, which needs to be initialized using @link linux_serial_ccsds_private_data::init
+     * Construct empty object, which needs to be initialized using linux_serial_ccsds_private_data::init
      * before usage.
      */
     linux_serial_ccsds_private_data();
@@ -141,7 +141,7 @@ void LinuxSerialCcsdsInit(void* private_data,
 /**
  * @brief Function which implements receiving data from remote partition.
  *
- * Functions works in separate thread, which is initialized by @link LinuxSerialCcsdsSend
+ * Functions works in separate thread, which is initialized by LinuxSerialCcsdsSend
  *
  * @param private_data   Driver private data, allocated by runtime
  */

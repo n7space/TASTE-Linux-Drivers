@@ -60,7 +60,7 @@ class linux_ip_socket_private_data final
     /**
      * @brief  Constructor.
      *
-     * Construct empty object, which needs to be initialized using @link linux_ip_socket_private_data::init
+     * Construct empty object, which needs to be initialized using linux_ip_socket_private_data::init
      * before usage.
      */
     linux_ip_socket_private_data();
@@ -155,7 +155,7 @@ namespace taste {
 /**
  * @brief Function which implements receiving data from remote partition.
  *
- * Functions works in separate thread, which is initialized by @link LinuxIpSocketSend
+ * Functions works in separate thread, which is initialized by LinuxIpSocketSend
  *
  * @param private_data   Driver private data, allocated by runtime
  */
