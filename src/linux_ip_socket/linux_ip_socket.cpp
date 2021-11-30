@@ -205,6 +205,8 @@ linux_ip_socket_private_data::connect_to_remote_driver()
         return INVALID_SOCKET_ID;
     }
 
+    freeaddrinfo(address_array);
+
     return sockfd;
 }
 
@@ -232,6 +234,7 @@ linux_ip_socket_private_data::prepare_listen_socket()
 
     if(listen_address == nullptr) {
         std::cerr << "Cannot create or bind socket\n";
+        freeaddrinfo(address_array);
         abort();
     }
 
