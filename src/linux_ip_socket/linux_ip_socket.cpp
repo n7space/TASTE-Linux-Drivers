@@ -173,7 +173,7 @@ linux_ip_socket_private_data::send_packet(const int sockfd, const size_t buffer_
             std::cerr << "sendto error\n";
             return;
         }
-        bytes_sent += send_result;
+        bytes_sent += static_cast<size_t>(send_result);
     }
 }
 
@@ -188,19 +188,20 @@ linux_ip_socket_private_data::connect_to_remote_driver()
 
     if(connect_address == nullptr) {
         std::cerr << "Cannot find remote address." << std::endl;
+        freeaddrinfo(address_array);
         return INVALID_SOCKET_ID;
     }
 
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
-    freeaddrinfo(address_array);
     if(sockfd == INVALID_SOCKET_ID) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
-
+        freeaddrinfo(address_array);
         return INVALID_SOCKET_ID;
     }
     const int connect_result = connect(sockfd, connect_address->ai_addr, connect_address->ai_addrlen);
     if(connect_result == CONNECT_ERROR) {
         std::cerr << "connect() returned an error: " << strerror(errno) << std::endl;
+        freeaddrinfo(address_array);
         return INVALID_SOCKET_ID;
     }
 
@@ -304,7 +305,7 @@ linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
         table[0].events = 0;
         return false;
     } else {
-        parse_recv_buffer(recv_result);
+        parse_recv_buffer(static_cast<size_t>(recv_result));
         return true;
     }
 }
