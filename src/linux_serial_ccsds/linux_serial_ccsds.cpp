@@ -50,22 +50,22 @@ inline void
 linux_serial_ccsds_private_data::driver_init_baudrate(const Serial_CCSDS_Linux_Conf_T* const device, int* cflags)
 {
     switch(device->speed) {
-        case b9600:
+        case Serial_CCSDS_Linux_Baudrate_T_b9600:
             *cflags |= B9600;
             break;
-        case b19200:
+        case Serial_CCSDS_Linux_Baudrate_T_b19200:
             *cflags |= B19200;
             break;
-        case b38400:
+        case Serial_CCSDS_Linux_Baudrate_T_b38400:
             *cflags |= B38400;
             break;
-        case b57600:
+        case Serial_CCSDS_Linux_Baudrate_T_b57600:
             *cflags |= B57600;
             break;
-        case b115200:
+        case Serial_CCSDS_Linux_Baudrate_T_b115200:
             *cflags |= B115200;
             break;
-        case b230400:
+        case Serial_CCSDS_Linux_Baudrate_T_b230400:
             *cflags |= B230400;
             break;
         default:
@@ -102,10 +102,10 @@ linux_serial_ccsds_private_data::driver_init_parity(const Serial_CCSDS_Linux_Con
     if(device->use_paritybit) {
         *cflags |= PARENB;
         switch(device->parity) {
-            case odd:
+            case Serial_CCSDS_Linux_Parity_T_odd:
                 *cflags |= PARODD;
                 break;
-            case even:
+            case Serial_CCSDS_Linux_Parity_T_even:
                 *cflags &= ~PARODD;
                 break;
             default:
