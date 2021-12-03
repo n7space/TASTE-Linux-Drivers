@@ -59,18 +59,18 @@ typedef struct
 
 typedef enum
 {
-    b9600 = 0,
-    b19200 = 1,
-    b38400 = 2,
-    b57600 = 3,
-    b115200 = 4,
-    b230400 = 5
+    Serial_CCSDS_Linux_Baudrate_T_b9600 = 0,
+    Serial_CCSDS_Linux_Baudrate_T_b19200 = 1,
+    Serial_CCSDS_Linux_Baudrate_T_b38400 = 2,
+    Serial_CCSDS_Linux_Baudrate_T_b57600 = 3,
+    Serial_CCSDS_Linux_Baudrate_T_b115200 = 4,
+    Serial_CCSDS_Linux_Baudrate_T_b230400 = 5
 } Serial_CCSDS_Linux_Baudrate_T;
 
 typedef enum
 {
-    even = 0,
-    odd = 1
+    Serial_CCSDS_Linux_Parity_T_even = 0,
+    Serial_CCSDS_Linux_Parity_T_odd = 1
 } Serial_CCSDS_Linux_Parity_T;
 
 typedef char Serial_CCSDS_Linux_Conf_T_devname[25];
