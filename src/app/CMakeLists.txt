@@ -1,7 +1,7 @@
 add_executable(LinuxApp)
 target_sources(LinuxApp
-  PRIVATE   main.cpp
-            PacketSender.cpp
+  PRIVATE   main.cc
+            PacketSender.cc
   PUBLIC    PacketSender.h)
 
 target_include_directories(LinuxApp

@@ -68,8 +68,12 @@ main()
     taste::Thread sendThread1{ SEND_THREAD_PRIORITY1, SEND_THREAD_STACK_SIZE1 };
     taste::Thread sendThread2{ SEND_THREAD_PRIORITY2, SEND_THREAD_STACK_SIZE2 };
 
-    Serial_CCSDS_Linux_Conf_T device1{ "/tmp/ttyVCOM0", b115200, odd, 8, 0, {} };
-    Serial_CCSDS_Linux_Conf_T device2{ "/tmp/ttyVCOM1", b115200, odd, 8, 0, {} };
+    Serial_CCSDS_Linux_Conf_T device1{
+        "/tmp/ttyVCOM0", Serial_CCSDS_Linux_Baudrate_T_b115200, Serial_CCSDS_Linux_Parity_T_odd, 8, 0, {}
+    };
+    Serial_CCSDS_Linux_Conf_T device2{
+        "/tmp/ttyVCOM1", Serial_CCSDS_Linux_Baudrate_T_b115200, Serial_CCSDS_Linux_Parity_T_odd, 8, 0, {}
+    };
 
     serial1.driver_init(BUS_INVALID_ID, DEVICE_INVALID_ID, &device1, nullptr);
     serial2.driver_init(BUS_INVALID_ID, DEVICE_INVALID_ID, &device2, nullptr);
