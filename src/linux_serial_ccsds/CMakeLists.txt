@@ -1,6 +1,6 @@
 add_library(LinuxSerialCcsds STATIC)
 target_sources(LinuxSerialCcsds
-  PRIVATE   linux_serial_ccsds.cpp
+  PRIVATE   linux_serial_ccsds.cc
   PUBLIC    linux_serial_ccsds.h)
 
 target_include_directories(LinuxSerialCcsds

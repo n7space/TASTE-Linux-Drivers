@@ -1,6 +1,6 @@
 add_library(LinuxIpSocket STATIC)
 target_sources(LinuxIpSocket
-  PRIVATE   linux_ip_socket.cpp
+  PRIVATE   linux_ip_socket.cc
   PUBLIC    linux_ip_socket.h)
 
 target_include_directories(LinuxIpSocket
