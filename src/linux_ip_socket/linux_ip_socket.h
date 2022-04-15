@@ -45,6 +45,7 @@
 extern "C"
 {
 #include <Broker.h>
+#include <Escaper.h>
 }
 
 /**
@@ -94,21 +95,14 @@ class linux_ip_socket_private_data final
     void driver_send(const uint8_t* data, const size_t length);
 
   private:
-    enum PacketParseState
-    {
-        STATE_WAIT,
-        STATE_DATA_BYTE,
-        STATE_ESCAPE_BYTE,
-    };
 
     static constexpr int DRIVER_THREAD_PRIORITY = 1;
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static constexpr int DRIVER_MAX_CONNECTIONS = 1;
-    static constexpr size_t DRIVER_SEND_BUFFER_SIZE = 8 * 1024;
-    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 8 * 1024;
-    static constexpr uint8_t START_BYTE = 0x00;
-    static constexpr uint8_t STOP_BYTE = 0xFF;
-    static constexpr uint8_t ESCAPE_BYTE = 0xFE;
+    static constexpr size_t DRIVER_RECV_BUFFER_SIZE = 1 * 1024;
+    static constexpr size_t ENCODED_PACKET_BUFFER_SIZE = 1 * 1024;
+    static constexpr size_t DECODED_PACKET_BUFFER_SIZE = BROKER_BUFFER_SIZE;
+
     static constexpr int INVALID_SOCKET_ID = -1;
     static constexpr int POLL_NO_TIMEOUT = -1;
     static constexpr int POLL_ERROR = -1;
@@ -121,15 +115,12 @@ class linux_ip_socket_private_data final
 
   private:
     void find_addresses(addrinfo** target, const char* address, const unsigned int port);
-    void parse_recv_buffer(const size_t length);
-    void send_packet(const int sockfd, const size_t buffer_length);
+    void send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
     int connect_to_remote_driver();
     void prepare_listen_socket();
-    void initialize_packet_parser();
     bool accept_connection(pollfd* table);
     void handle_connection(pollfd* table);
     bool read_data_or_disconnect(pollfd* table);
-    size_t encode_data(const uint8_t* const data, const size_t length, size_t& index);
 
   private:
     int m_listen_sockfd;
@@ -139,15 +130,10 @@ class linux_ip_socket_private_data final
     const Socket_IP_Conf_T* m_ip_remote_device_configuration;
     taste::Thread m_thread;
 
-    PacketParseState m_parse_state;
-    bool m_encode_started;
-    bool m_escape;
-    bool m_encode_finished;
-    uint8_t m_message_buffer[BROKER_BUFFER_SIZE];
-    size_t m_message_buffer_index;
-
-    uint8_t m_send_buffer[DRIVER_SEND_BUFFER_SIZE];
     uint8_t m_recv_buffer[DRIVER_RECV_BUFFER_SIZE];
+    uint8_t m_encoded_packet_buffer[ENCODED_PACKET_BUFFER_SIZE];
+    uint8_t m_decoded_packet_buffer[DECODED_PACKET_BUFFER_SIZE];
+    Escaper escaper{};
 };
 
 namespace taste {
