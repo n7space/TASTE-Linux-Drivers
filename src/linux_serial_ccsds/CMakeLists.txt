@@ -4,9 +4,9 @@ target_sources(LinuxSerialCcsds
   PUBLIC    linux_serial_ccsds.h)
 
 target_include_directories(LinuxSerialCcsds
-  PRIVATE   ..
-            ../../TASTE-Linux-Runtime/src
-  PUBLIC    ../RuntimeMocks)
+  PRIVATE   ${CMAKE_CURRENT_SOURCE_DIR}/../
+            ${CMAKE_CURRENT_SOURCE_DIR}/../../TASTE-Linux-Runtime/src
+  PUBLIC    ${CMAKE_CURRENT_SOURCE_DIR}/../RuntimeMocks)
 
 target_link_libraries(LinuxSerialCcsds
   PRIVATE   common_build_options
