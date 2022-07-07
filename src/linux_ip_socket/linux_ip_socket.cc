@@ -271,7 +271,7 @@ linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
         return false;
     } else {
         const size_t length = static_cast<const size_t>(recv_result);
-        Escaper_decode_packet(&escaper, m_recv_buffer, length, Broker_receive_packet);
+        Escaper_decode_packet(&escaper, m_ip_device_bus_id, m_recv_buffer, length, Broker_receive_packet);
         return true;
     }
 }
