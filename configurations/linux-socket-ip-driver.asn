@@ -14,8 +14,6 @@ Port-T ::= INTEGER (0 .. 65535)
 
 Version-T ::= ENUMERATED {ipv4, ipv6}
 
-Packetizer-T ::= ENUMERATED {default, ccsds, thin}
-
 Socket-IP-Conf-T ::= SEQUENCE {
    devname        IA5String (SIZE (1..20)),
    address        IA5String (SIZE (1..40)),
