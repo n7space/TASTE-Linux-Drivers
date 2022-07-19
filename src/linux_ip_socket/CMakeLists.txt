@@ -10,7 +10,8 @@ target_include_directories(LinuxIpSocket
 target_link_libraries(LinuxIpSocket
   PRIVATE   common_build_options
             TASTE::RuntimeMocks
-  PUBLIC    TASTE::Broker)
+  PUBLIC    TASTE::Broker
+            TASTE::Escaper)
 
 add_format_target(LinuxIpSocket)
 
