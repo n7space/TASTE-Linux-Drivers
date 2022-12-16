@@ -18,7 +18,8 @@ Socket-IP-Conf-T ::= SEQUENCE {
    devname        IA5String (SIZE (1..20)),
    address        IA5String (SIZE (1..40)),
    version        Version-T DEFAULT ipv4,
-   port           Port-T
+   port           Port-T,
+   reuse-send-socket  BOOLEAN DEFAULT FALSE
 }
 
 localhost1 Socket-IP-Conf-T ::= {

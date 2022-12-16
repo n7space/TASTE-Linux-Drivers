@@ -42,6 +42,7 @@ typedef enum
 
 typedef char Socket_IP_Conf_T_devname[21];
 typedef char Socket_IP_Conf_T_address[41];
+typedef flag Socket_IP_Conf_T_reuse_send_socket;
 
 typedef struct
 {
@@ -49,10 +50,12 @@ typedef struct
     Socket_IP_Conf_T_address address;
     Version_T version;
     Port_T port;
+    Socket_IP_Conf_T_reuse_send_socket reuse_send_socket;
 
     struct
     {
         unsigned int version : 1;
+        unsigned int reuse_send_socket:1;
     } exist;
 
 } Socket_IP_Conf_T;

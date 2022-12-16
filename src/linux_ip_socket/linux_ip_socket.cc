@@ -39,6 +39,7 @@
 
 linux_ip_socket_private_data::linux_ip_socket_private_data()
     : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
+    , m_send_sockfd(INVALID_SOCKET_ID)
 {
     Escaper_init(&escaper,
                  m_encoded_packet_buffer,
@@ -95,6 +96,16 @@ linux_ip_socket_private_data::driver_poll()
 void
 linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
+    if(m_ip_device_configuration->exist.reuse_send_socket && m_ip_device_configuration->reuse_send_socket) {
+        driver_send_reuse_connection(data, length);
+    } else {
+        driver_send_new_connection(data, length);
+    }
+}
+
+void
+linux_ip_socket_private_data::driver_send_new_connection(const uint8_t* const data, const size_t length)
+{
     const int sockfd = connect_to_remote_driver();
     if(sockfd == INVALID_SOCKET_ID) {
         return;
@@ -109,6 +120,26 @@ linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_
     }
 
     close(sockfd);
+}
+
+void
+linux_ip_socket_private_data::driver_send_reuse_connection(const uint8_t* const data, const size_t length)
+{
+    if(m_send_sockfd == INVALID_SOCKET_ID) {
+        m_send_sockfd = connect_to_remote_driver();
+        if(m_send_sockfd == INVALID_SOCKET_ID) {
+            return;
+        }
+    }
+
+    size_t index = 0;
+
+    Escaper_start_encoder(&escaper);
+
+    while(index < length) {
+        size_t packet_length = Escaper_encode_packet(&escaper, data, length, &index);
+        send_packet(m_send_sockfd, m_encoded_packet_buffer, packet_length);
+    }
 }
 
 void
@@ -161,6 +192,10 @@ linux_ip_socket_private_data::connect_to_remote_driver()
     }
 
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
+    int enabled = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
+    static long int con_counter = 0;
+    std::cout << "Connection " << con_counter++ << " Created socket " << sockfd << std::endl;
     if(sockfd == INVALID_SOCKET_ID) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
         freeaddrinfo(address_array);
@@ -187,6 +222,8 @@ linux_ip_socket_private_data::prepare_listen_socket()
     addrinfo* listen_address = nullptr;
     for(listen_address = address_array; listen_address != nullptr; listen_address = listen_address->ai_next) {
         m_listen_sockfd = socket(listen_address->ai_family, listen_address->ai_socktype, listen_address->ai_protocol);
+        int enabled = 1;
+        setsockopt(m_listen_sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
         if(m_listen_sockfd == INVALID_SOCKET_ID) {
             std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
             continue;
@@ -221,6 +258,9 @@ linux_ip_socket_private_data::accept_connection(pollfd* table)
     sockaddr_storage remote_addr;
     socklen_t remote_addr_size = sizeof(sockaddr_storage);
     const int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
+    int enabled = 1;
+    setsockopt(new_sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
+    std::cout << "Accept " << new_sockfd << std::endl;
     if(new_sockfd == INVALID_SOCKET_ID) {
         std::cerr << "accept() returned an error: " << std::strerror(errno) << std::endl;
         table[0].fd = 0;
@@ -265,7 +305,7 @@ linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
         table[0].events = 0;
         return false;
     } else if(recv_result == RECV_CONNECTION_SHUTDOWN) {
-        close(table[0].fd);
+        // close(table[0].fd);
         table[0].fd = 0;
         table[0].events = 0;
         return false;
