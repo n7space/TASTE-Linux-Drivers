@@ -130,7 +130,7 @@ class linux_ip_socket_private_data final
 
   private:
     void find_addresses(addrinfo** target, const char* address, const unsigned int port);
-    void send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
+    bool send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
     int connect_to_remote_driver();
     void prepare_listen_socket();
     bool accept_connection(pollfd* table);

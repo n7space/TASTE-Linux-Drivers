@@ -38,8 +38,8 @@
 #include <unistd.h>
 
 linux_ip_socket_private_data::linux_ip_socket_private_data()
-    : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
-    , m_send_sockfd(INVALID_SOCKET_ID)
+    : m_send_sockfd(INVALID_SOCKET_ID)
+    , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
 {
     Escaper_init(&escaper,
                  m_encoded_packet_buffer,
@@ -116,7 +116,9 @@ linux_ip_socket_private_data::driver_send_new_connection(const uint8_t* const da
     Escaper_start_encoder(&escaper);
     while(index < length) {
         size_t packet_length = Escaper_encode_packet(&escaper, data, length, &index);
-        send_packet(sockfd, m_encoded_packet_buffer, packet_length);
+        if(!send_packet(sockfd, m_encoded_packet_buffer, packet_length)) {
+            break;
+        }
     }
 
     close(sockfd);
@@ -138,7 +140,11 @@ linux_ip_socket_private_data::driver_send_reuse_connection(const uint8_t* const 
 
     while(index < length) {
         size_t packet_length = Escaper_encode_packet(&escaper, data, length, &index);
-        send_packet(m_send_sockfd, m_encoded_packet_buffer, packet_length);
+        if(!send_packet(m_send_sockfd, m_encoded_packet_buffer, packet_length)) {
+            close(m_send_sockfd);
+            m_send_sockfd = INVALID_SOCKET_ID;
+            break;
+        }
     }
 }
 
@@ -162,7 +168,7 @@ linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* addr
     }
 }
 
-void
+bool
 linux_ip_socket_private_data::send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length)
 {
     size_t bytes_sent = 0;
@@ -170,10 +176,11 @@ linux_ip_socket_private_data::send_packet(const int sockfd, const uint8_t* buffe
         const int send_result = send(sockfd, buffer + bytes_sent, buffer_length - bytes_sent, 0);
         if(send_result == SEND_ERROR) {
             std::cerr << "sendto error\n";
-            return;
+            return false;
         }
         bytes_sent += static_cast<size_t>(send_result);
     }
+    return true;
 }
 
 int
@@ -194,8 +201,6 @@ linux_ip_socket_private_data::connect_to_remote_driver()
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
     int enabled = 1;
     setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
-    static long int con_counter = 0;
-    std::cout << "Connection " << con_counter++ << " Created socket " << sockfd << std::endl;
     if(sockfd == INVALID_SOCKET_ID) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
         freeaddrinfo(address_array);
@@ -260,7 +265,6 @@ linux_ip_socket_private_data::accept_connection(pollfd* table)
     const int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
     int enabled = 1;
     setsockopt(new_sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
-    std::cout << "Accept " << new_sockfd << std::endl;
     if(new_sockfd == INVALID_SOCKET_ID) {
         std::cerr << "accept() returned an error: " << std::strerror(errno) << std::endl;
         table[0].fd = 0;
