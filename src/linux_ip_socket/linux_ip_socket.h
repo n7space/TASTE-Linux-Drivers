@@ -97,6 +97,8 @@ class linux_ip_socket_private_data final
     /**
      * @brief send data to remote partition.
      *
+     * A new connection is established every call and closed before return.
+     *
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
      */
@@ -104,6 +106,9 @@ class linux_ip_socket_private_data final
 
     /**
      * @brief send data to remote partition.
+     *
+     * The established connection is reused between calls. In case of disconnect or error,
+     * a new connection is established.
      *
      * @param data           The Buffer which data to send to connected remote partition
      * @param length         The size of the buffer
