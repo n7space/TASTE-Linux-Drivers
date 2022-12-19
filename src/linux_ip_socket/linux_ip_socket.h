@@ -94,8 +94,28 @@ class linux_ip_socket_private_data final
      */
     void driver_send(const uint8_t* data, const size_t length);
 
-  private:
+    /**
+     * @brief send data to remote partition.
+     *
+     * A new connection is established every call and closed before return.
+     *
+     * @param data           The Buffer which data to send to connected remote partition
+     * @param length         The size of the buffer
+     */
+    void driver_send_new_connection(const uint8_t* data, const size_t length);
 
+    /**
+     * @brief send data to remote partition.
+     *
+     * The established connection is reused between calls. In case of disconnect or error,
+     * a new connection is established.
+     *
+     * @param data           The Buffer which data to send to connected remote partition
+     * @param length         The size of the buffer
+     */
+    void driver_send_reuse_connection(const uint8_t* data, const size_t length);
+
+  private:
     static constexpr int DRIVER_THREAD_PRIORITY = 1;
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static constexpr int DRIVER_MAX_CONNECTIONS = 1;
@@ -115,7 +135,7 @@ class linux_ip_socket_private_data final
 
   private:
     void find_addresses(addrinfo** target, const char* address, const unsigned int port);
-    void send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
+    bool send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
     int connect_to_remote_driver();
     void prepare_listen_socket();
     bool accept_connection(pollfd* table);
@@ -124,6 +144,7 @@ class linux_ip_socket_private_data final
 
   private:
     int m_listen_sockfd;
+    int m_send_sockfd;
     enum SystemBus m_ip_device_bus_id;
     enum SystemDevice m_ip_device_id;
     const Socket_IP_Conf_T* m_ip_device_configuration;
