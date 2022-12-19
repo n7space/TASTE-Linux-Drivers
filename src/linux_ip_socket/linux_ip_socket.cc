@@ -309,7 +309,7 @@ linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
         table[0].events = 0;
         return false;
     } else if(recv_result == RECV_CONNECTION_SHUTDOWN) {
-        // close(table[0].fd);
+        close(table[0].fd);
         table[0].fd = 0;
         table[0].events = 0;
         return false;
