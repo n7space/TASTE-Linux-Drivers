@@ -173,7 +173,7 @@ linux_ip_socket_private_data::send_packet(const int sockfd, const uint8_t* buffe
 {
     size_t bytes_sent = 0;
     while(bytes_sent < buffer_length) {
-        const int send_result = send(sockfd, buffer + bytes_sent, buffer_length - bytes_sent, 0);
+        const int send_result = send(sockfd, buffer + bytes_sent, buffer_length - bytes_sent, MSG_NOSIGNAL);
         if(send_result == SEND_ERROR) {
             std::cerr << "sendto error\n";
             return false;
