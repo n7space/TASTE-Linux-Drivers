@@ -168,7 +168,7 @@ linux_serial_ccsds_private_data::driver_poll()
         if(m_serialFd != -1) {
             length = read(m_serialFd, m_recv_buffer, DRIVER_RECV_BUFFER_SIZE);
             if(length > 0) {
-                Escaper_decode_packet(&escaper, m_recv_buffer, length, Broker_receive_packet);
+                Escaper_decode_packet(&escaper, m_serial_device_bus_id, m_recv_buffer, length, Broker_receive_packet);
             } else {
                 std::cerr << "Error while polling. Cannot read.\n\r";
                 exit(EXIT_FAILURE);

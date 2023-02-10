@@ -38,9 +38,14 @@
 #include <unistd.h>
 
 linux_ip_socket_private_data::linux_ip_socket_private_data()
-    : m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
-    , m_message_buffer_index(0)
+    : m_send_sockfd(INVALID_SOCKET_ID)
+    , m_thread(DRIVER_THREAD_PRIORITY, DRIVER_THREAD_STACK_SIZE)
 {
+    Escaper_init(&escaper,
+                 m_encoded_packet_buffer,
+                 ENCODED_PACKET_BUFFER_SIZE,
+                 m_decoded_packet_buffer,
+                 DECODED_PACKET_BUFFER_SIZE);
 }
 
 void
@@ -91,22 +96,56 @@ linux_ip_socket_private_data::driver_poll()
 void
 linux_ip_socket_private_data::driver_send(const uint8_t* const data, const size_t length)
 {
+    if(m_ip_device_configuration->exist.reuse_send_socket && m_ip_device_configuration->reuse_send_socket) {
+        driver_send_reuse_connection(data, length);
+    } else {
+        driver_send_new_connection(data, length);
+    }
+}
+
+void
+linux_ip_socket_private_data::driver_send_new_connection(const uint8_t* const data, const size_t length)
+{
     const int sockfd = connect_to_remote_driver();
     if(sockfd == INVALID_SOCKET_ID) {
         return;
     }
 
-    m_encode_started = false;
-    m_escape = false;
-    m_encode_finished = false;
     size_t index = 0;
 
-    while(!m_encode_finished) {
-        size_t packet_length = encode_data(data, length, index);
-        send_packet(sockfd, packet_length);
+    Escaper_start_encoder(&escaper);
+    while(index < length) {
+        size_t packet_length = Escaper_encode_packet(&escaper, data, length, &index);
+        if(!send_packet(sockfd, m_encoded_packet_buffer, packet_length)) {
+            break;
+        }
     }
 
     close(sockfd);
+}
+
+void
+linux_ip_socket_private_data::driver_send_reuse_connection(const uint8_t* const data, const size_t length)
+{
+    if(m_send_sockfd == INVALID_SOCKET_ID) {
+        m_send_sockfd = connect_to_remote_driver();
+        if(m_send_sockfd == INVALID_SOCKET_ID) {
+            return;
+        }
+    }
+
+    size_t index = 0;
+
+    Escaper_start_encoder(&escaper);
+
+    while(index < length) {
+        size_t packet_length = Escaper_encode_packet(&escaper, data, length, &index);
+        if(!send_packet(m_send_sockfd, m_encoded_packet_buffer, packet_length)) {
+            close(m_send_sockfd);
+            m_send_sockfd = INVALID_SOCKET_ID;
+            break;
+        }
+    }
 }
 
 void
@@ -129,52 +168,19 @@ linux_ip_socket_private_data::find_addresses(addrinfo** target, const char* addr
     }
 }
 
-void
-linux_ip_socket_private_data::parse_recv_buffer(const size_t length)
-{
-    for(size_t i = 0; i < length; ++i) {
-        switch(m_parse_state) {
-            case STATE_WAIT:
-                if(m_recv_buffer[i] == START_BYTE) {
-                    m_parse_state = STATE_DATA_BYTE;
-                }
-                break;
-            case STATE_DATA_BYTE:
-                if(m_recv_buffer[i] == STOP_BYTE) {
-                    Broker_receive_packet(m_message_buffer, m_message_buffer_index);
-                    m_message_buffer_index = 0;
-                    m_parse_state = STATE_WAIT;
-                } else if(m_recv_buffer[i] == ESCAPE_BYTE) {
-                    m_parse_state = STATE_ESCAPE_BYTE;
-                } else if(m_recv_buffer[i] == START_BYTE) {
-                    m_message_buffer_index = 0;
-                    m_parse_state = STATE_DATA_BYTE;
-                } else {
-                    m_message_buffer[m_message_buffer_index] = m_recv_buffer[i];
-                    ++m_message_buffer_index;
-                }
-                break;
-            case STATE_ESCAPE_BYTE:
-                m_message_buffer[m_message_buffer_index] = m_recv_buffer[i];
-                ++m_message_buffer_index;
-                m_parse_state = STATE_DATA_BYTE;
-                break;
-        }
-    }
-}
-
-void
-linux_ip_socket_private_data::send_packet(const int sockfd, const size_t buffer_length)
+bool
+linux_ip_socket_private_data::send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length)
 {
     size_t bytes_sent = 0;
     while(bytes_sent < buffer_length) {
-        const int send_result = send(sockfd, m_send_buffer + bytes_sent, buffer_length - bytes_sent, 0);
+        const int send_result = send(sockfd, buffer + bytes_sent, buffer_length - bytes_sent, MSG_NOSIGNAL);
         if(send_result == SEND_ERROR) {
             std::cerr << "sendto error\n";
-            return;
+            return false;
         }
         bytes_sent += static_cast<size_t>(send_result);
     }
+    return true;
 }
 
 int
@@ -193,6 +199,8 @@ linux_ip_socket_private_data::connect_to_remote_driver()
     }
 
     const int sockfd = socket(connect_address->ai_family, connect_address->ai_socktype, connect_address->ai_protocol);
+    int enabled = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
     if(sockfd == INVALID_SOCKET_ID) {
         std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
         freeaddrinfo(address_array);
@@ -219,6 +227,8 @@ linux_ip_socket_private_data::prepare_listen_socket()
     addrinfo* listen_address = nullptr;
     for(listen_address = address_array; listen_address != nullptr; listen_address = listen_address->ai_next) {
         m_listen_sockfd = socket(listen_address->ai_family, listen_address->ai_socktype, listen_address->ai_protocol);
+        int enabled = 1;
+        setsockopt(m_listen_sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
         if(m_listen_sockfd == INVALID_SOCKET_ID) {
             std::cerr << "socket() returned an error: " << strerror(errno) << std::endl;
             continue;
@@ -247,25 +257,20 @@ linux_ip_socket_private_data::prepare_listen_socket()
     }
 }
 
-void
-linux_ip_socket_private_data::initialize_packet_parser()
-{
-    m_parse_state = STATE_WAIT;
-}
-
 bool
 linux_ip_socket_private_data::accept_connection(pollfd* table)
 {
     sockaddr_storage remote_addr;
     socklen_t remote_addr_size = sizeof(sockaddr_storage);
     const int new_sockfd = accept(m_listen_sockfd, (struct sockaddr*)&remote_addr, &remote_addr_size);
+    int enabled = 1;
+    setsockopt(new_sockfd, SOL_SOCKET, SO_REUSEADDR, &enabled, sizeof(int));
     if(new_sockfd == INVALID_SOCKET_ID) {
         std::cerr << "accept() returned an error: " << std::strerror(errno) << std::endl;
         table[0].fd = 0;
         table[0].events = 0;
         return false;
     } else {
-        initialize_packet_parser();
         table[0].fd = new_sockfd;
         table[0].events = POLLIN;
         return true;
@@ -275,6 +280,7 @@ linux_ip_socket_private_data::accept_connection(pollfd* table)
 void
 linux_ip_socket_private_data::handle_connection(pollfd* table)
 {
+    Escaper_start_decoder(&escaper);
     while(true) {
         // wait for data on listen without timeout
         const int poll_result = ::poll(table, 1, POLL_NO_TIMEOUT);
@@ -308,58 +314,10 @@ linux_ip_socket_private_data::read_data_or_disconnect(pollfd* table)
         table[0].events = 0;
         return false;
     } else {
-        parse_recv_buffer(static_cast<size_t>(recv_result));
+        const size_t length = static_cast<const size_t>(recv_result);
+        Escaper_decode_packet(&escaper, m_ip_device_bus_id, m_recv_buffer, length, Broker_receive_packet);
         return true;
     }
-}
-
-size_t
-linux_ip_socket_private_data::encode_data(const uint8_t* const data, const size_t length, size_t& index)
-{
-    size_t send_buffer_index = 0;
-
-    if(!m_encode_started) {
-        m_send_buffer[0] = START_BYTE;
-        ++send_buffer_index;
-        m_encode_started = true;
-    }
-
-    while(index < length) {
-        if(m_escape) {
-            m_send_buffer[send_buffer_index] = data[index];
-            ++send_buffer_index;
-            ++index;
-            m_escape = false;
-        } else if(data[index] == START_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            m_escape = true;
-        } else if(data[index] == ESCAPE_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            m_escape = true;
-        } else if(data[index] == STOP_BYTE) {
-            m_send_buffer[send_buffer_index] = ESCAPE_BYTE;
-            ++send_buffer_index;
-            m_escape = true;
-        } else {
-            m_send_buffer[send_buffer_index] = data[index];
-            ++send_buffer_index;
-            ++index;
-        }
-
-        if(send_buffer_index == DRIVER_SEND_BUFFER_SIZE) {
-            return send_buffer_index;
-        }
-    }
-
-    if(index == length) {
-        m_send_buffer[send_buffer_index] = STOP_BYTE;
-        ++send_buffer_index;
-        m_encode_finished = true;
-    }
-
-    return send_buffer_index;
 }
 
 namespace taste {

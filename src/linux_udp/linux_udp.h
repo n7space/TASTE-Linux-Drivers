@@ -1,6 +1,7 @@
 /**@file
- * This file is part of the TASTE Linux Runtime.
+ * This file is part of the TASTE C++ Linux Runtime.
  *
+ * @copyright 2022 ESA / Maxime Perrotin
  * @copyright 2021 N7 Space Sp. z o.o.
  *
  * TASTE Linux Runtime was developed under a programme of,
@@ -20,12 +21,12 @@
  * limitations under the License.
  */
 
-#ifndef LINUX_IP_SOCKET_H
-#define LINUX_IP_SOCKET_H
+#ifndef LINUX_UDP_H
+#define LINUX_UDP_H
 
 /**
- * @file     linux_ip_socket.h
- * @brief    Driver for TASTE with uses TCP/IP for communication.
+ * @file     linux_udp.h
+ * @brief    UDP Driver for the Linux C++ Runtime
  *
  */
 
@@ -55,16 +56,16 @@ extern "C"
  * The name of this structure shall match driver definition from ocarina_components.aadl
  * and has suffix '_private_data'.
  */
-class linux_ip_socket_private_data final
+class linux_udp_private_data final
 {
   public:
     /**
      * @brief  Constructor.
      *
-     * Construct empty object, which needs to be initialized using linux_ip_socket_private_data::init
+     * Construct empty object, which needs to be initialized using linux_udp_private_data::init
      * before usage.
      */
-    linux_ip_socket_private_data();
+    linux_udp_private_data();
 
     /**
      * @brief Initialize driver.
@@ -94,28 +95,8 @@ class linux_ip_socket_private_data final
      */
     void driver_send(const uint8_t* data, const size_t length);
 
-    /**
-     * @brief send data to remote partition.
-     *
-     * A new connection is established every call and closed before return.
-     *
-     * @param data           The Buffer which data to send to connected remote partition
-     * @param length         The size of the buffer
-     */
-    void driver_send_new_connection(const uint8_t* data, const size_t length);
-
-    /**
-     * @brief send data to remote partition.
-     *
-     * The established connection is reused between calls. In case of disconnect or error,
-     * a new connection is established.
-     *
-     * @param data           The Buffer which data to send to connected remote partition
-     * @param length         The size of the buffer
-     */
-    void driver_send_reuse_connection(const uint8_t* data, const size_t length);
-
   private:
+
     static constexpr int DRIVER_THREAD_PRIORITY = 1;
     static constexpr int DRIVER_THREAD_STACK_SIZE = 65536;
     static constexpr int DRIVER_MAX_CONNECTIONS = 1;
@@ -134,17 +115,12 @@ class linux_ip_socket_private_data final
     static constexpr int BIND_ERROR = -1;
 
   private:
-    void find_addresses(addrinfo** target, const char* address, const unsigned int port);
-    bool send_packet(const int sockfd, const uint8_t* buffer, const size_t buffer_length);
     int connect_to_remote_driver();
     void prepare_listen_socket();
-    bool accept_connection(pollfd* table);
-    void handle_connection(pollfd* table);
     bool read_data_or_disconnect(pollfd* table);
 
   private:
     int m_listen_sockfd;
-    int m_send_sockfd;
     enum SystemBus m_ip_device_bus_id;
     enum SystemDevice m_ip_device_id;
     const Socket_IP_Conf_T* m_ip_device_configuration;
@@ -162,11 +138,11 @@ namespace taste {
 /**
  * @brief Function which implements receiving data from remote partition.
  *
- * Functions works in separate thread, which is initialized by LinuxIpSocketSend
+ * Functions works in separate thread, which is initialized by LinuxUdpSend
  *
  * @param private_data   Driver private data, allocated by runtime
  */
-void LinuxIpSocketPoll(void* private_data);
+void LinuxUdpPoll(void* private_data);
 
 /**
  * @brief Send data to remote partition.
@@ -177,7 +153,7 @@ void LinuxIpSocketPoll(void* private_data);
  * @param data           The Buffer which data to send to connected remote partition
  * @param length         The size of the buffer
  */
-void LinuxIpSocketSend(void* private_data, const uint8_t* const data, const size_t length);
+void LinuxUdpSend(void* private_data, const uint8_t* const data, const size_t length);
 
 /**
  * @brief Initialize driver.
@@ -190,7 +166,7 @@ void LinuxIpSocketSend(void* private_data, const uint8_t* const data, const size
  * @param device_configuration Configuration of device
  * @param remote_device_configuration Configuration of remote device
  */
-void LinuxIpSocketInit(void* private_data,
+void LinuxUdpInit(void* private_data,
                        const SystemBus bus_id,
                        const SystemDevice device_id,
                        const Socket_IP_Conf_T* const device_configuration,
