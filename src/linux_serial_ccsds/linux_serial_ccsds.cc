@@ -23,6 +23,7 @@
 #include "linux_serial_ccsds.h"
 
 #include <fcntl.h>
+#include <string.h>
 #include <cassert>
 #include <termios.h>
 #include <unistd.h>
@@ -135,7 +136,7 @@ linux_serial_ccsds_private_data::driver_init(const SystemBus bus_id,
      */
     m_serialFd = open(device_configuration->devname, O_RDWR | O_NOCTTY);
     if(m_serialFd == -1) {
-        std::cerr << "Error while opening a file \n\r";
+        std::cerr << "Error while opening file '" << device_configuration->devname << "': " << strerror(errno) << "\n\r";
         exit(EXIT_FAILURE);
     }
 
